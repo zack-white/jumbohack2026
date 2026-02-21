@@ -5,12 +5,17 @@
 
 import type {
   NetworkInfo,
+  PingResponse,
   ScanRequest,
   ScanResponse,
   AnalyzeRequest,
   AnalyzeResponse,
   PiAgentError,
 } from "./piAgentTypes";
+
+export function isPingResponse(val: unknown): val is PingResponse {
+  return typeof val === "object" && val !== null && "data" in val && (val as PingResponse).data === "ping";
+}
 
 const API_BASE = "/api/pi";
 
@@ -42,14 +47,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 }
 
-/** GET /api/pi/ping -> Pi network info */
-export async function getNetwork(): Promise<NetworkInfo> {
+/** GET /api/pi/ping -> Pi network info or {"data": "ping"} health check */
+export async function getNetwork(): Promise<NetworkInfo | PingResponse> {
   const res = await fetch(`${API_BASE}/ping`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
   });
-  return handleResponse<NetworkInfo>(res);
+  return handleResponse<NetworkInfo | PingResponse>(res);
 }
 
 /** POST /api/pi/scan -> Run Scapy+Nmap scan */

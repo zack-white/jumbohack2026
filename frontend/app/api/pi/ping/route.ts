@@ -6,9 +6,9 @@ export const fetchCache = "force-no-store";
 
 const TIMEOUT_MS = 10_000;
 
-async function fetchNetwork(retry = false): Promise<Response> {
+async function fetchPing(retry = false): Promise<Response> {
   const base = getPiBaseUrl();
-  const url = `${base}/network`;
+  const url = `${base}/ping`;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -24,13 +24,13 @@ async function fetchNetwork(retry = false): Promise<Response> {
     clearTimeout(id);
     if (retry) throw err;
     // 1 retry on network failure
-    return fetchNetwork(true);
+    return fetchPing(true);
   }
 }
 
 export async function GET() {
   try {
-    const res = await fetchNetwork();
+    const res = await fetchPing();
     const text = await res.text();
     if (!res.ok) {
       return NextResponse.json(

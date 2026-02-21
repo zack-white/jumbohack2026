@@ -1,5 +1,10 @@
 // Pi Agent API types
 
+/** Simple health-check response from Pi ping endpoint */
+export interface PingResponse {
+  data: "ping";
+}
+
 export interface NetworkInfo {
   pi_ip: string;
   hostname: string;

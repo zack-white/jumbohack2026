@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getNetwork, runScan, analyze } from "@/lib/piAgentClient";
-import type { NetworkInfo, ScanResponse, AnalyzeResponse, PiAgentError } from "@/lib/piAgentTypes";
+import type { ScanResponse, AnalyzeResponse, PiAgentError } from "@/lib/piAgentTypes";
 
 type Status = "idle" | "running" | "error" | "success";
 
@@ -18,7 +18,7 @@ export default function PiScannerPanel() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [cidr, setCidr] = useState("");
-  const [networkResult, setNetworkResult] = useState<NetworkInfo | null>(null);
+  const [pingResult, setPingResult] = useState<unknown>(null);
   const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
   const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResponse | null>(null);
 
@@ -41,8 +41,7 @@ export default function PiScannerPanel() {
     setError(null);
     try {
       const data = await getNetwork();
-      setNetworkResult(data);
-      if (data.cidr_guess && !cidr) setCidr(data.cidr_guess);
+      setPingResult(data);
       setStatus("success");
     } catch (err) {
       handleError(err);
@@ -50,9 +49,9 @@ export default function PiScannerPanel() {
   }
 
   async function handleRunScan() {
-    const c = cidr.trim() || networkResult?.cidr_guess;
+    const c = cidr.trim();
     if (!c) {
-      setError("Provide CIDR or run Get Network first");
+      setError("Enter CIDR to scan");
       setStatus("error");
       return;
     }
@@ -87,7 +86,7 @@ export default function PiScannerPanel() {
     }
   }
 
-  const canScan = cidr.trim() || networkResult?.cidr_guess;
+  const canScan = !!cidr.trim();
   const canAnalyze = !!scanResult;
   const isRunning = status === "running";
 
@@ -98,7 +97,7 @@ export default function PiScannerPanel() {
       {/* CIDR input */}
       <div>
         <label htmlFor="cidr" className="block text-sm font-medium mb-1">
-          CIDR (optional; can be filled from Get Network)
+          CIDR (required for scan)
         </label>
         <input
           id="cidr"
@@ -117,7 +116,7 @@ export default function PiScannerPanel() {
           disabled={isRunning}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          1) Get Network
+          1) Ping
         </button>
         <button
           onClick={handleRunScan}
@@ -151,11 +150,11 @@ export default function PiScannerPanel() {
       )}
 
       {/* Results */}
-      {networkResult && (
+      {pingResult !== null && (
         <div>
-          <h2 className="text-lg font-semibold mb-2">Network Info</h2>
+          <h2 className="text-lg font-semibold mb-2">Ping Response</h2>
           <pre className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded overflow-auto text-sm">
-            {formatJson(networkResult)}
+            {formatJson(pingResult)}
           </pre>
         </div>
       )}
