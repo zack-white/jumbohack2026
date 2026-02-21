@@ -78,6 +78,8 @@ const defaultEdges: Edge[] = [
   { id: "e5-6", source: "5", target: "6" },
 ];
 
+export { defaultNodes, defaultEdges };
+
 export default function NetworkGraph({
   nodes = defaultNodes,
   edges = defaultEdges,
@@ -95,6 +97,8 @@ export default function NetworkGraph({
         edges={edges}
         onNodesChange={onNodesChange ?? (() => {})}
         onEdgesChange={onEdgesChange ?? (() => {})}
+        nodesDraggable
+        nodesConnectable={false}
         onConnect={onConnect}
         onNodeClick={(_, node) => onNodeSelect?.(node)}
         onPaneClick={() => onNodeSelect?.(null)}
