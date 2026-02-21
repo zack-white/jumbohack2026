@@ -17,6 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { cn } from "@/lib/utils";
 import { Monitor } from "lucide-react";
+import { AnimatedBeamEdge } from "./AnimatedBeamEdge";
 
 export type RiskLevel = "none" | "slight" | "medium" | "high";
 
@@ -63,6 +64,7 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
 }
 
 const nodeTypes = { device: DeviceNode };
+const edgeTypes = { animatedBeam: AnimatedBeamEdge };
 
 const defaultNodes: Node<NetworkNodeData>[] = [
   { id: "1", type: "device", position: { x: 100, y: 80 }, data: { label: "Hannah's Laptop", risk: "slight" } },
@@ -107,10 +109,11 @@ export default function NetworkGraph({
         onNodeClick={(_, node) => onNodeSelect?.(node)}
         onPaneClick={() => onNodeSelect?.(null)}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
         fitView
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ style: { stroke: "#94a3b8" } }}
+        defaultEdgeOptions={{ type: "animatedBeam", style: { stroke: "#94a3b8" } }}
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#525252" className="opacity-50" />
         <Controls className="!bg-card !border-border" />
