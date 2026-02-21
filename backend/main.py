@@ -1,13 +1,12 @@
 from fastapi import FastAPI
-import subprocess
+import requests
 
 app = FastAPI()
 
 @app.get("/ping")
 def ping():
-    result = subprocess.run(["hostname", "-i"], capture_output=True, text=True)
-    return result.stdout
-
+    response = requests.get("https://api.ipify.org?format=json")
+    return response.json()["ip"]
 
 @app.get("/scan")
 def scan():
