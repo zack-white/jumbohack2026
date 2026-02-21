@@ -122,3 +122,8 @@
     @apply bg-background text-foreground;
     }
 }
+
+/* React Flow graph pane - force black background */
+.react-flow__pane {
+  background-color: #000 !important;
+}

@@ -88,8 +88,9 @@ export default function NetworkGraph({
   className,
 }: NetworkGraphProps) {
   return (
-    <div className={cn("h-full min-h-[400px] rounded-lg border bg-muted/20", className)}>
+    <div className={cn("h-full min-h-[400px] rounded-lg border border-border bg-black", className)}>
       <ReactFlow
+        colorMode="dark"
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange ?? (() => {})}
@@ -102,7 +103,7 @@ export default function NetworkGraph({
         fitView
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} className="opacity-40" />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#525252" className="opacity-50" />
         <Controls className="!bg-card !border-border" />
         <MiniMap
           nodeColor={(n) => {
