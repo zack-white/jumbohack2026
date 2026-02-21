@@ -6,40 +6,37 @@ export const fetchCache = "force-no-store";
 
 const TIMEOUT_MS = 180_000; // 3 min for scan
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const duration = searchParams.get("duration") ?? "60";
+  const base = getPiBaseUrl();
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
-    const body = await request.json().catch(() => ({}));
-    const base = getPiBaseUrl();
-    const url = `${base}/scan`;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
+    const res = await fetch(`${base}/scan?duration=${duration}`, {
+      method: "GET",
+      headers: { Accept: "text/event-stream" },
       cache: "no-store",
       signal: controller.signal,
     });
     clearTimeout(id);
-    const text = await res.text();
+
     if (!res.ok) {
       return NextResponse.json(
-        {
-          error: res.statusText,
-          status: res.status,
-          body: text ? (() => {
-            try { return JSON.parse(text); } catch { return text; }
-          })() : undefined,
-        },
+        { error: "Pi scan request failed", status: res.status },
         { status: res.status }
       );
     }
-    const json = text ? JSON.parse(text) : {};
-    return NextResponse.json(json);
+
+    return new NextResponse(res.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+    });
   } catch (err) {
+    clearTimeout(id);
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
       { error: "Pi scan request failed", details: message },
