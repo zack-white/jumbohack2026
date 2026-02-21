@@ -127,3 +127,11 @@
 .react-flow__pane {
   background-color: #000 !important;
 }
+
+/* Make edges visible on black background (default dark stroke is #3e3e3e, invisible) */
+.react-flow__edge-path {
+  stroke: #94a3b8 !important;
+}
+.react-flow__edge.animated path {
+  stroke: #94a3b8 !important;
+}

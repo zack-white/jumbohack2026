@@ -5,6 +5,8 @@ import {
   Background,
   Controls,
   MiniMap,
+  Handle,
+  Position,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -52,6 +54,8 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
         selected && "ring-2 ring-amber-400 ring-offset-2 ring-offset-background"
       )}
     >
+      <Handle type="target" position={Position.Top} className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       <Monitor className="h-6 w-6" />
       <span className="text-xs text-muted-foreground">{data.label}</span>
     </div>
@@ -106,6 +110,7 @@ export default function NetworkGraph({
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
         fitView
         proOptions={{ hideAttribution: true }}
+        defaultEdgeOptions={{ style: { stroke: "#94a3b8" }, animated: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#525252" className="opacity-50" />
         <Controls className="!bg-card !border-border" />

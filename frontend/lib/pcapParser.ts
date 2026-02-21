@@ -202,3 +202,104 @@ export function parsePcap(buffer: ArrayBuffer): PcapParseResult {
     connections,
   };
 }
+
+/** Parsed IPv4 connection from a single packet */
+export interface StreamPacket {
+  srcIp: string;
+  dstIp: string;
+}
+
+/**
+ * Stream PCAP file and yield { srcIp, dstIp } for each IPv4 packet.
+ * Use File.stream() to read incrementally.
+ */
+export async function* parsePcapStream(
+  stream: ReadableStream<Uint8Array>
+): AsyncGenerator<StreamPacket> {
+  const reader = stream.getReader();
+  let buffer = new Uint8Array(0);
+  let littleEndian = false;
+
+  const ensureBytes = async (n: number): Promise<Uint8Array | null> => {
+    while (buffer.byteLength < n) {
+      const { done, value } = await reader.read();
+      if (done) return null;
+      const combined = new Uint8Array(buffer.byteLength + value.length);
+      combined.set(buffer);
+      combined.set(value, buffer.byteLength);
+      buffer = combined;
+    }
+    return buffer;
+  };
+
+  const consume = (n: number) => {
+    buffer = buffer.slice(n);
+  };
+
+  const readU32 = (view: DataView, offset: number) =>
+    view.getUint32(offset, littleEndian);
+  const readU16 = (view: DataView, offset: number) =>
+    view.getUint16(offset, false);
+  const ipToString = (view: DataView, offset: number) =>
+    `${view.getUint8(offset)}.${view.getUint8(offset + 1)}.${view.getUint8(offset + 2)}.${view.getUint8(offset + 3)}`;
+
+  const chunk = await ensureBytes(24);
+  if (!chunk || chunk.length < 24) return;
+  const headerView = new DataView(
+    chunk.buffer,
+    chunk.byteOffset,
+    chunk.byteLength
+  );
+  const magic = headerView.getUint32(0, false);
+  littleEndian = magic === 0xd4c3b2a1 || magic === 0xd5c3b2a1;
+  const validMagic =
+    magic === 0xa1b2c3d4 ||
+    magic === 0xa1b2c3d5 ||
+    magic === 0xd4c3b2a1 ||
+    magic === 0xd5c3b2a1;
+  if (!validMagic) throw new Error("Invalid PCAP magic number");
+  const linkType = readU32(headerView, 20);
+  if (linkType !== 1) throw new Error("Only Ethernet link type supported");
+  consume(24);
+
+  const ETHERNET_HEADER_SIZE = 14;
+  const ETHERTYPE_IPV4 = 0x0800;
+  const IP_HEADER_MIN_SIZE = 20;
+  const IP_SRC_OFFSET = 12;
+  const IP_DST_OFFSET = 16;
+
+  while (true) {
+    const pHdr = await ensureBytes(16);
+    if (!pHdr || pHdr.length < 16) break;
+    const view = new DataView(pHdr.buffer, pHdr.byteOffset, pHdr.byteLength);
+    const inclLen = readU32(view, 8);
+    consume(16);
+
+    const pktData = await ensureBytes(inclLen);
+    if (!pktData || pktData.length < inclLen) break;
+
+    const payloadStart = ETHERNET_HEADER_SIZE;
+    if (inclLen < payloadStart + 4) {
+      consume(inclLen);
+      continue;
+    }
+    const pktView = new DataView(
+      pktData.buffer,
+      pktData.byteOffset,
+      pktData.byteLength
+    );
+    const etherType = readU16(pktView, 12);
+    if (etherType !== ETHERTYPE_IPV4) {
+      consume(inclLen);
+      continue;
+    }
+    if (inclLen < payloadStart + IP_HEADER_MIN_SIZE) {
+      consume(inclLen);
+      continue;
+    }
+    const srcIp = ipToString(pktView, payloadStart + IP_SRC_OFFSET);
+    const dstIp = ipToString(pktView, payloadStart + IP_DST_OFFSET);
+    consume(inclLen);
+    yield { srcIp, dstIp };
+  }
+}
