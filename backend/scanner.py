@@ -155,7 +155,7 @@ INTERFACE_PRIORITY = ["eth0", "eth1", "wlan0", "wlan1"]
 
 def get_interface():
     """
-    Determines how Pi is connected to the Internet to know how to listen
+    Determines how Pi is connected to the Internet to know how to listen.
     """
     available = get_if_list()
     for iface in INTERFACE_PRIORITY:
