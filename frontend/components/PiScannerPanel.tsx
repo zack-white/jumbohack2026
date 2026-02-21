@@ -42,6 +42,10 @@ export default function PiScannerPanel() {
     try {
       const data = await getNetwork();
       setPingResult(data);
+      const cidrGuess = typeof data === "object" && data !== null && "cidr_guess" in data && typeof (data as { cidr_guess?: string }).cidr_guess === "string"
+        ? (data as { cidr_guess: string }).cidr_guess
+        : undefined;
+      if (cidrGuess && !cidr) setCidr(cidrGuess);
       setStatus("success");
     } catch (err) {
       handleError(err);
@@ -49,7 +53,7 @@ export default function PiScannerPanel() {
   }
 
   async function handleRunScan() {
-    const c = cidr.trim();
+    const c = cidr.trim() || cidrFromPing;
     if (!c) {
       setError("Enter CIDR to scan");
       setStatus("error");
@@ -86,7 +90,14 @@ export default function PiScannerPanel() {
     }
   }
 
-  const canScan = !!cidr.trim();
+  const cidrFromPing =
+    typeof pingResult === "object" &&
+    pingResult !== null &&
+    "cidr_guess" in pingResult &&
+    typeof (pingResult as { cidr_guess?: string }).cidr_guess === "string"
+      ? (pingResult as { cidr_guess: string }).cidr_guess
+      : undefined;
+  const canScan = !!cidr.trim() || !!cidrFromPing;
   const canAnalyze = !!scanResult;
   const isRunning = status === "running";
 
@@ -97,7 +108,7 @@ export default function PiScannerPanel() {
       {/* CIDR input */}
       <div>
         <label htmlFor="cidr" className="block text-sm font-medium mb-1">
-          CIDR (required for scan)
+          CIDR (optional; autofills from ping)
         </label>
         <input
           id="cidr"
