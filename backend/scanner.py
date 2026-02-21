@@ -49,7 +49,6 @@ class DeviceTracker:
 def parse_packet(packet) -> dict:
     """
     Converts a raw Scapy packet into a clean dict the frontend can render.
-    Every packet gets the same shape — missing fields are None.
     """
     data = {
         "timestamp": datetime.now().isoformat(),
@@ -97,3 +96,75 @@ def parse_packet(packet) -> dict:
         data["dst_ip"] = packet[ARP].pdst
 
     return data
+
+
+async def run_scan(duration: int = 60, batch_interval: float = 2.0):
+    """
+    Async generator that sniffs packets for "duration" seconds, yielding
+    micro-batches every "batch_interval" seconds.
+
+    Yields dicts with type "batch" during the scan and "done" at the end.
+    The WebSocket handler in main.py iterates over this generator.
+    """
+    tracker = DeviceTracker()
+    iface = get_interface()
+
+    # Sniffer thread puts packets in queue, we read them out
+    packet_queue = queue.Queue()
+
+    def handle_packet(pkt):
+        # Called by the sniffer thread for every packet captured
+        if pkt.haslayer(ARP):
+            # Learn this device: MAC hwsrc owns IP psrc
+            tracker.update(pkt[ARP].psrc, pkt[ARP].hwsrc)
+        # Parse and drop into queue, main loop will pick it up
+        packet_queue.put(parse_packet(pkt))
+
+    # AsyncSniffer runs in a background thread so it doesn't block FastAPI
+    sniffer = AsyncSniffer(iface=iface, prn=handle_packet, store=False)
+    sniffer.start()
+
+    start = time.time()
+    while time.time() - start < duration:
+        # Yield control back to FastAPI for batch_interval seconds
+        await asyncio.sleep(batch_interval)
+
+        # Drain everything that accumulated in the queue since last batch
+        batch = []
+        while not packet_queue.empty():
+            batch.append(packet_queue.get_nowait())
+
+        # Only send if we actually captured something
+        if batch:
+            yield {
+                "type": "batch",
+                "packets": batch,
+                "devices": tracker.get_devices(),  # current snapshot of all known devices
+            }
+
+    sniffer.stop()
+
+    # Signals main.py to trigger LLM analysis
+    yield {
+        "type": "done",
+        "devices": tracker.get_devices(),
+    }
+
+
+INTERFACE_PRIORITY = ["eth0", "eth1", "wlan0", "wlan1"]
+
+def get_interface():
+    """
+    Determines how Pi is connected to the Internet to know how to listen
+    """
+    available = get_if_list()
+    for iface in INTERFACE_PRIORITY:
+        if iface in available and get_if_addr(iface) != "0.0.0.0":
+            return iface
+    # fallback: first non-loopback interface with an IP
+    for iface in available:
+        if iface == "lo":
+            continue
+        if get_if_addr(iface) != "0.0.0.0":
+            return iface
+    raise RuntimeError("No usable network interface found")
