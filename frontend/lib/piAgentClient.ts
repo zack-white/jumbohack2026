@@ -42,9 +42,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 }
 
-/** GET /api/pi/network -> Pi network info */
+/** GET /api/pi/ping -> Pi network info */
 export async function getNetwork(): Promise<NetworkInfo> {
-  const res = await fetch(`${API_BASE}/network`, {
+  const res = await fetch(`${API_BASE}/ping`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -66,9 +66,9 @@ export async function runScan(req: ScanRequest): Promise<ScanResponse> {
   return handleResponse<ScanResponse>(res);
 }
 
-/** POST /api/pi/analyze -> Run LLM analysis on scan data */
+/** POST /api/pi/llm -> Run LLM analysis on scan data */
 export async function analyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const res = await fetch(`${API_BASE}/analyze`, {
+  const res = await fetch(`${API_BASE}/llm`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
