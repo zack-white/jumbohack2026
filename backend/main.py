@@ -13,6 +13,11 @@ def scan():
     return { "data": "scan" }
 
 
+@app.get("/nmap")
+def nmap():
+    return
+
+
 @app.get("/llm")
 def llm():
     return { "data": "llm" }
