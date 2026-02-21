@@ -8,6 +8,9 @@ import time
 import subprocess
 import re
 
+# IP address to ignore (packets with this src or dst will be dropped)
+IGNORED_IP_ADDRESS = "10.0.1.6"
+
 
 class DeviceTracker:
     """
@@ -187,15 +190,24 @@ async def run_scan(duration: int = 60, batch_interval: float = 2.0):
     packet_queue = queue.Queue()
 
     def handle_packet(pkt):
+        # Always process ARP packets for device tracking
         if pkt.haslayer(ARP):
             tracker.update_arp(pkt[ARP].psrc, pkt[ARP].hwsrc)
 
-        # If it’s an IP packet, keep "last_seen" warm even if we never saw ARP
+        # If it's an IP packet, keep "last_seen" warm even if we never saw ARP
         if pkt.haslayer(IP):
             tracker.ensure(pkt[IP].src)
             tracker.ensure(pkt[IP].dst)
 
-        packet_queue.put(parse_packet(pkt))
+        # Only skip sending packets to queue if source IP is the ignored address
+        should_skip_packet = False
+        if pkt.haslayer(IP) and pkt[IP].src == IGNORED_IP_ADDRESS:
+            should_skip_packet = True
+        elif pkt.haslayer(ARP) and pkt[ARP].psrc == IGNORED_IP_ADDRESS:
+            should_skip_packet = True
+
+        if not should_skip_packet:
+            packet_queue.put(parse_packet(pkt))
 
     sniffer = AsyncSniffer(iface=iface, prn=handle_packet, store=False)
     sniffer.start()
