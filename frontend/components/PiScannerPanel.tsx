@@ -14,6 +14,24 @@ function isPiAgentError(err: unknown): err is PiAgentError {
   return typeof err === "object" && err !== null && "status" in err && "message" in err;
 }
 
+const IP_REGEX = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+
+/** Extract CIDR from ping response. Response is now a string (IP), or object with cidr_guess/data. */
+function cidrFromPingResponse(res: unknown): string | undefined {
+  if (typeof res === "string" && IP_REGEX.test(res)) {
+    const parts = res.split(".");
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+  }
+  if (typeof res !== "object" || res === null) return undefined;
+  const r = res as Record<string, unknown>;
+  if (typeof r.cidr_guess === "string") return r.cidr_guess;
+  if (typeof r.data === "string" && IP_REGEX.test(r.data)) {
+    const parts = r.data.split(".");
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+  }
+  return undefined;
+}
+
 export default function PiScannerPanel() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +60,7 @@ export default function PiScannerPanel() {
     try {
       const data = await getNetwork();
       setPingResult(data);
-      const cidrGuess = typeof data === "object" && data !== null && "cidr_guess" in data && typeof (data as { cidr_guess?: string }).cidr_guess === "string"
-        ? (data as { cidr_guess: string }).cidr_guess
-        : undefined;
+      const cidrGuess = cidrFromPingResponse(data);
       if (cidrGuess && !cidr) setCidr(cidrGuess);
       setStatus("success");
     } catch (err) {
@@ -90,13 +106,7 @@ export default function PiScannerPanel() {
     }
   }
 
-  const cidrFromPing =
-    typeof pingResult === "object" &&
-    pingResult !== null &&
-    "cidr_guess" in pingResult &&
-    typeof (pingResult as { cidr_guess?: string }).cidr_guess === "string"
-      ? (pingResult as { cidr_guess: string }).cidr_guess
-      : undefined;
+  const cidrFromPing = cidrFromPingResponse(pingResult);
   const canScan = !!cidr.trim() || !!cidrFromPing;
   const canAnalyze = !!scanResult;
   const isRunning = status === "running";

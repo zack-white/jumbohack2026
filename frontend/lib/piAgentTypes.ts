@@ -1,8 +1,8 @@
 // Pi Agent API types
 
-/** Simple health-check response from Pi ping endpoint */
+/** Pi ping response: {"data": "ping"} for health check, or {"data": "IP_HERE"} when IP is returned */
 export interface PingResponse {
-  data: "ping";
+  data: string; // "ping" | IP address
 }
 
 export interface NetworkInfo {

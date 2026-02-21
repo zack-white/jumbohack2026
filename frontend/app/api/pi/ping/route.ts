@@ -44,8 +44,17 @@ export async function GET() {
         { status: res.status }
       );
     }
-    const json = text ? JSON.parse(text) : {};
-    return NextResponse.json(json);
+    let body: unknown;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text; // plain string response
+      }
+    } else {
+      body = {};
+    }
+    return NextResponse.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
