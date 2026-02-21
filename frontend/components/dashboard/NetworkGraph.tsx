@@ -110,7 +110,7 @@ export default function NetworkGraph({
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
         fitView
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ style: { stroke: "#94a3b8" }, animated: true }}
+        defaultEdgeOptions={{ style: { stroke: "#94a3b8" } }}
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#525252" className="opacity-50" />
         <Controls className="!bg-card !border-border" />

@@ -131,7 +131,18 @@
 /* Make edges visible on black background (default dark stroke is #3e3e3e, invisible) */
 .react-flow__edge-path {
   stroke: #94a3b8 !important;
+  stroke-dasharray: none;
 }
-.react-flow__edge.animated path {
-  stroke: #94a3b8 !important;
+
+/* Fade-in when edge first appears, no continuous animation */
+.react-flow__edge {
+  animation: edge-fade-in 0.25s ease-out;
+}
+@keyframes edge-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

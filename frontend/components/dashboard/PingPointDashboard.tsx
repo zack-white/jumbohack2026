@@ -86,7 +86,6 @@ export function PingPointDashboard() {
             id: `e-${key}`,
             source: srcIp,
             target: dstIp,
-            animated: true,
           } as Edge,
         ]);
       };
