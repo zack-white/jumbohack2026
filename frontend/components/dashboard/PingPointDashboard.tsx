@@ -9,7 +9,7 @@ import NetworkGraph, {
   type NetworkNodeData,
 } from "./NetworkGraph";
 import DevicePanel from "./DevicePanel";
-import MetricsBar, { type PcapMetrics } from "./MetricsBar";
+import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { parsePcapStream } from "@/lib/pcapParser";
 
 const NODE_SPACING = 180;
@@ -38,7 +38,8 @@ export function PingPointDashboard() {
     defaultNodes
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(defaultEdges);
-  const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
+  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesPoint[]>([]);
+  const [summary, setSummary] = useState<PcapSummary | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -56,12 +57,14 @@ export function PingPointDashboard() {
       setIsStreaming(true);
       setNodes([]);
       setEdges([]);
-      setMetrics(null);
+      setTimeSeriesData([]);
+      setSummary(null);
 
       const seenIps = new Map<string, number>();
-      let packetCount = 0;
       const seenConnections = new Set<string>();
       let nodeIndex = 0;
+      let firstTs: number | null = null;
+      const buckets = new Map<number, number>();
 
       const flushConnection = (srcIp: string, dstIp: string) => {
         const key =
@@ -114,21 +117,27 @@ export function PingPointDashboard() {
 
       try {
         const stream = file.stream();
-        for await (const { srcIp, dstIp } of parsePcapStream(stream)) {
+        for await (const { srcIp, dstIp, tsMs } of parsePcapStream(stream)) {
           if (signal.aborted) break;
-          packetCount++;
+          if (tsMs > 0) {
+            if (firstTs === null) firstTs = tsMs;
+            const bucket = Math.max(0, Math.floor((tsMs - firstTs) / 1000));
+            buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
+          }
           connectionQueue.push({ srcIp, dstIp });
           scheduleFlush();
         }
+        if (!signal.aborted && buckets.size > 0) {
+          const maxSec = Math.max(...buckets.keys());
+          const series: TimeSeriesPoint[] = [];
+          for (let s = 0; s <= maxSec; s++) {
+            series.push({ time: s, count: buckets.get(s) ?? 0 });
+          }
+          setTimeSeriesData(series);
+          setSummary({ deviceCount: seenIps.size, connectionCount: seenConnections.size });
+        }
         while (connectionQueue.length > 0 && !signal.aborted) {
           await new Promise((r) => setTimeout(r, EDGE_ANIMATION_DELAY_MS));
-        }
-        if (!signal.aborted) {
-          setMetrics({
-            deviceCount: seenIps.size,
-            connectionCount: seenConnections.size,
-            packetCount,
-          });
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
@@ -177,7 +186,7 @@ export function PingPointDashboard() {
         </aside>
       </div>
 
-      <MetricsBar metrics={metrics} />
+      <PacketTimeGraph data={timeSeriesData} isStreaming={isStreaming} summary={summary} />
     </div>
   );
 }

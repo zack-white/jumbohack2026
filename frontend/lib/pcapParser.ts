@@ -207,6 +207,7 @@ export function parsePcap(buffer: ArrayBuffer): PcapParseResult {
 export interface StreamPacket {
   srcIp: string;
   dstIp: string;
+  tsMs: number;
 }
 
 /**
@@ -252,6 +253,7 @@ export async function* parsePcapStream(
   );
   const magic = headerView.getUint32(0, false);
   littleEndian = magic === 0xd4c3b2a1 || magic === 0xd5c3b2a1;
+  const isNano = magic === 0xa1b2c3d5 || magic === 0xd5c3b2a1;
   const validMagic =
     magic === 0xa1b2c3d4 ||
     magic === 0xa1b2c3d5 ||
@@ -272,7 +274,10 @@ export async function* parsePcapStream(
     const pHdr = await ensureBytes(16);
     if (!pHdr || pHdr.length < 16) break;
     const view = new DataView(pHdr.buffer, pHdr.byteOffset, pHdr.byteLength);
+    const tsSec = readU32(view, 0);
+    const tsUsec = readU32(view, 4);
     const inclLen = readU32(view, 8);
+    const tsMs = tsSec * 1000 + (isNano ? Math.floor(tsUsec / 1e6) : Math.floor(tsUsec / 1000));
     consume(16);
 
     const pktData = await ensureBytes(inclLen);
@@ -300,6 +305,6 @@ export async function* parsePcapStream(
     const srcIp = ipToString(pktView, payloadStart + IP_SRC_OFFSET);
     const dstIp = ipToString(pktView, payloadStart + IP_DST_OFFSET);
     consume(inclLen);
-    yield { srcIp, dstIp };
+    yield { srcIp, dstIp, tsMs };
   }
 }
