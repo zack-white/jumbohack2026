@@ -9,7 +9,7 @@ import NetworkGraph, {
   type NetworkNodeData,
 } from "./NetworkGraph";
 import DevicePanel from "./DevicePanel";
-import MetricsBar from "./MetricsBar";
+import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import { parsePcapStream } from "@/lib/pcapParser";
 
 const NODE_SPACING = 180;
@@ -38,6 +38,7 @@ export function PingPointDashboard() {
     defaultNodes
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(defaultEdges);
+  const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -55,8 +56,10 @@ export function PingPointDashboard() {
       setIsStreaming(true);
       setNodes([]);
       setEdges([]);
+      setMetrics(null);
 
       const seenIps = new Map<string, number>();
+      let packetCount = 0;
       const seenConnections = new Set<string>();
       let nodeIndex = 0;
 
@@ -113,11 +116,19 @@ export function PingPointDashboard() {
         const stream = file.stream();
         for await (const { srcIp, dstIp } of parsePcapStream(stream)) {
           if (signal.aborted) break;
+          packetCount++;
           connectionQueue.push({ srcIp, dstIp });
           scheduleFlush();
         }
         while (connectionQueue.length > 0 && !signal.aborted) {
           await new Promise((r) => setTimeout(r, EDGE_ANIMATION_DELAY_MS));
+        }
+        if (!signal.aborted) {
+          setMetrics({
+            deviceCount: seenIps.size,
+            connectionCount: seenConnections.size,
+            packetCount,
+          });
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
@@ -166,7 +177,7 @@ export function PingPointDashboard() {
         </aside>
       </div>
 
-      <MetricsBar />
+      <MetricsBar metrics={metrics} />
     </div>
   );
 }
