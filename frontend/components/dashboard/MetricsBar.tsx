@@ -2,10 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function MetricsBar() {
+export default function MetricsBar({ className }: { className?: string }) {
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardContent className="flex flex-row flex-wrap items-center justify-between gap-6 py-4">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-sm">Active connections</span>

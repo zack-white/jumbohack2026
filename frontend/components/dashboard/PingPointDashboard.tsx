@@ -13,21 +13,21 @@ export function PingPointDashboard() {
   const [selectedNode, setSelectedNode] = useState<Node<NetworkNodeData> | null>(null);
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="flex min-h-[500px] flex-col">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="flex min-h-0 flex-col">
           <NetworkGraph
             nodes={nodes}
             onNodeSelect={setSelectedNode}
-            className="flex-1"
+            className="min-h-0 flex-1"
           />
         </div>
-        <aside className="flex min-h-0 flex-col lg:max-h-[700px]">
+        <aside className="flex min-h-0 flex-col overflow-hidden">
           <DevicePanel />
         </aside>
       </div>
 
-      <MetricsBar />
+      <MetricsBar className="shrink-0" />
     </div>
   );
 }
