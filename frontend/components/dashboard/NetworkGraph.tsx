@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Controls,
@@ -119,6 +119,10 @@ export interface NetworkNodeData {
   labelFull?: string;
   risk?: RiskLevel;
   ip?: string;
+  mac?: string | null;
+  vendor?: string;
+  hostname?: string | null;
+  packetCount?: number;
   [key: string]: unknown;
 }
 
@@ -141,19 +145,20 @@ const riskColors: Record<RiskLevel, string> = {
 
 function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: boolean }) {
   const risk = data.risk ?? "none";
+
   return (
     <div
       className={cn(
         "flex flex-col items-center gap-1 rounded-lg border-2 bg-card p-2 transition-all",
         riskColors[risk],
-        selected && "ring-2 ring-amber-400 ring-offset-2 ring-offset-background"
+        selected && "ring-2 ring-blue-400 ring-offset-2 ring-offset-background"
       )}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       <Monitor className="h-6 w-6" />
       <span
-        className="text-xs text-muted-foreground truncate max-w-[120px]"
+        className="max-w-[120px] truncate text-xs text-muted-foreground"
         title={data.labelFull ?? data.label}
       >
         {data.label}
@@ -174,6 +179,8 @@ export default function NetworkGraph({
   onNodeSelect,
   className,
 }: NetworkGraphProps) {
+  const [selectedData, setSelectedData] = useState<NetworkNodeData | null>(null);
+
   return (
     <div className={cn("relative h-full min-h-[400px] overflow-hidden rounded-lg border border-border bg-black", className)}>
       <LatticeBackground />
@@ -186,8 +193,14 @@ export default function NetworkGraph({
         nodesDraggable
         nodesConnectable={false}
         onConnect={onConnect}
-        onNodeClick={(_, node) => onNodeSelect?.(node)}
-        onPaneClick={() => onNodeSelect?.(null)}
+        onNodeClick={(_, node) => {
+          onNodeSelect?.(node);
+          setSelectedData(node.data);
+        }}
+        onPaneClick={() => {
+          onNodeSelect?.(null);
+          setSelectedData(null);
+        }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
@@ -208,6 +221,42 @@ export default function NetworkGraph({
           className="!bg-card !border-border"
         />
       </ReactFlow>
+
+      {selectedData && (
+        <div className="pointer-events-none absolute right-3 top-3 z-10 w-56 rounded-lg border border-border bg-card shadow-xl">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <Monitor className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span
+              className="truncate text-sm font-semibold"
+              title={String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
+            >
+              {String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
+            </span>
+          </div>
+          <dl className="space-y-1.5 px-3 py-2.5 text-xs">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">IP</dt>
+              <dd className="font-mono">{selectedData.ip}</dd>
+            </div>
+            {selectedData.mac && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">MAC</dt>
+                <dd className="font-mono">{String(selectedData.mac)}</dd>
+              </div>
+            )}
+            {selectedData.vendor && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Vendor</dt>
+                <dd className="text-right">{String(selectedData.vendor)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Packets</dt>
+              <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
     </div>
   );
 }
