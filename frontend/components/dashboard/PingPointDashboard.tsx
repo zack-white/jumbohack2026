@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
-import NetworkGraph, {
-  type NetworkNodeData,
-} from "./NetworkGraph";
+import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
 import DevicePanel from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
+import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 
 const NODE_SPACING = 180;
@@ -39,37 +38,58 @@ export function PingPointDashboard() {
   const seenIps = useRef<Map<string, number>>(new Map());
   const seenConnections = useRef<Set<string>>(new Set());
 
+  const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
+    if (packets.length === 0) return [];
+    const toMs = (t: string | number) =>
+      typeof t === "number" ? t : new Date(String(t)).getTime();
+    const firstTs = toMs(packets[0]?.timestamp ?? 0);
+    const buckets = new Map<number, number>();
+    const BUCKET_SEC = 5;
+    for (const p of packets) {
+      const ms = toMs(p.timestamp);
+      const bucket = Math.max(0, Math.floor((ms - firstTs) / 1000 / BUCKET_SEC));
+      buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
+    }
+    const maxBucket = Math.max(0, ...buckets.keys());
+    return Array.from({ length: maxBucket + 1 }, (_, i) => ({
+      time: i * BUCKET_SEC,
+      count: buckets.get(i) ?? 0,
+    }));
+  }, [packets]);
 
-  // Populate graph nodes and edges when new packets and devices are detected
+  const summary: PcapSummary | null = useMemo(
+    () =>
+      metrics
+        ? { deviceCount: metrics.deviceCount, connectionCount: metrics.connectionCount }
+        : null,
+    [metrics]
+  );
+
   useEffect(() => {
-    // Add nodes for each device we know about
     for (const ip of Object.keys(devices)) {
       if (!seenIps.current.has(ip)) {
         const index = seenIps.current.size;
         seenIps.current.set(ip, index);
-        setNodes(prev => [...prev, makeNode(ip, index)]);
+        setNodes((prev) => [...prev, makeNode(ip, index)]);
       }
     }
 
-    // Add edges for each packet connection
     for (const pkt of packets) {
       const { src_ip, dst_ip } = pkt;
       if (!src_ip || !dst_ip) continue;
       const key = src_ip < dst_ip ? `${src_ip}|${dst_ip}` : `${dst_ip}|${src_ip}`;
       if (!seenConnections.current.has(key)) {
         seenConnections.current.add(key);
-        setEdges(prev => [...prev, { id: key, source: src_ip, target: dst_ip }]);
+        setEdges((prev) => [...prev, { id: key, source: src_ip, target: dst_ip }]);
       }
     }
 
-    // Update metrics
     setMetrics({
       deviceCount: seenIps.current.size,
       connectionCount: seenConnections.current.size,
       packetCount: packets.length,
     });
   }, [packets, devices]);
-
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
@@ -86,7 +106,7 @@ export function PingPointDashboard() {
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-col gap-4">
           <NetworkGraph
             nodes={nodes}
             edges={edges}
@@ -94,13 +114,17 @@ export function PingPointDashboard() {
             onEdgesChange={onEdgesChange}
             className="min-h-0 flex-1"
           />
+          <PacketTimeGraph
+            data={timeSeriesData}
+            isStreaming={status === "scanning"}
+            summary={summary}
+          />
         </div>
         <aside className="flex min-h-0 flex-col overflow-hidden">
+          <MetricsBar metrics={metrics} />
           <DevicePanel />
         </aside>
       </div>
-
-      <MetricsBar metrics={metrics} />
     </div>
   );
 }
