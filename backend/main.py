@@ -14,11 +14,11 @@ app = FastAPI()
 
 class NmapRequest(BaseModel):
     ips: List[str]
-    timeout: int = 60
+    timeout: int = 300
     args: List[str] = None
 
 @app.get("/ping")
-def ping(timeout: float = 3.0):
+def ping(timeout: float = 20.0):
     # response = requests.get("https://api.ipify.org?format=json")
     # return response.json()["ip"]
     try:

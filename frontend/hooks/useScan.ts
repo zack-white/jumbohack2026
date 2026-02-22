@@ -181,7 +181,7 @@ export function useScan() {
         
         // Convert IPs array to query parameters
         const ipsParam = ips.map(ip => `ips=${encodeURIComponent(ip)}`).join('&');
-        const nmapEs = new EventSource(`/api/pi/nmap?${ipsParam}&timeout=60`);
+        const nmapEs = new EventSource(`/api/pi/nmap?${ipsParam}&timeout=300`);
         nmapEventSourceRef.current = nmapEs;
 
         nmapEs.onmessage = (event) => {

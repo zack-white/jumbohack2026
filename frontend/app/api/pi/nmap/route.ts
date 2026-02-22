@@ -9,7 +9,7 @@ export const fetchCache = 'force-no-store';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const ips = searchParams.getAll('ips');
-  const timeout = searchParams.get('timeout') ?? '60';
+  const timeout = searchParams.get('timeout') ?? '300';
   if (!ips.length) {
     return NextResponse.json({ error: 'ips query param required' }, { status: 400 });
   }

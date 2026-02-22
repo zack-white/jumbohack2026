@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 
 
-def _run_avahi(timeout: float = 3.0) -> str:
+def _run_avahi(timeout: float = 20.0) -> str:
     if shutil.which("avahi-browse") is None:
         raise RuntimeError(
             "avahi-browse not found. Install with: sudo apt-get install avahi-utils"
@@ -49,7 +49,7 @@ def _parse_avahi(output: str):
     }
 
 
-def get_avahi_devices(timeout: float = 3.0):
+def get_avahi_devices(timeout: float = 20.0):
     raw = _run_avahi(timeout)
     mapping = _parse_avahi(raw)
 
