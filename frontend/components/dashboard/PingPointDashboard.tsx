@@ -282,6 +282,34 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
   console.log('[DASHBOARD] Current status:', status, 'start function:', typeof start);
+  console.log('[DASHBOARD] Nmap results:', nmapScanResults?.length || 0, 'results available');
+  console.log('[DASHBOARD] Devices:', Object.keys(devices).length, 'devices found');
+
+  // Track nmap results changes  
+  useEffect(() => {
+    console.log('[NMAP] Nmap results updated:', nmapScanResults?.length || 0, 'scan results');
+    if (nmapScanResults && nmapScanResults.length > 0) {
+      console.log('[NMAP] First result structure:', nmapScanResults[0]);
+      
+      // Handle the actual backend format: { hosts: [...] }
+      try {
+        const allIps = nmapScanResults.flatMap(r => {
+          if (r.hosts && Array.isArray(r.hosts)) {
+            return r.hosts.map(host => host.ip);
+          }
+          // Fallback for other possible formats
+          if (r.results && Array.isArray(r.results)) {
+            return r.results.map(result => result.ip);
+          }
+          return [];
+        });
+        console.log('[NMAP] All scanned IPs:', allIps);
+      } catch (error) {
+        console.error('[NMAP] Error parsing nmap results:', error);
+        console.log('[NMAP] Raw results structure:', JSON.stringify(nmapScanResults, null, 2));
+      }
+    }
+  }, [nmapScanResults]);
 
   // Initial mount - notify parent immediately
   useEffect(() => {
@@ -328,10 +356,23 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   // Get nmap results for the selected IP
   const selectedNmapResults = useMemo(() => {
     if (!selectedIp) return [];
-    return nmapScanResults
-      .flatMap(scanResult => 
-        scanResult.results.filter(result => result.ip === selectedIp)
-      );
+    
+    try {
+      return nmapScanResults.flatMap(scanResult => {
+        // Handle ACTUAL format with hosts array (from your backend: { hosts: [...] })
+        if (scanResult.hosts && Array.isArray(scanResult.hosts)) {
+          return scanResult.hosts.filter(host => host.ip === selectedIp);
+        }
+        // Fallback for other possible formats
+        if (scanResult.results && Array.isArray(scanResult.results)) {
+          return scanResult.results.filter(result => result.ip === selectedIp);
+        }
+        return [];
+      });
+    } catch (error) {
+      console.error('[NMAP] Error filtering nmap results for IP:', selectedIp, error);
+      return [];
+    }
   }, [selectedIp, nmapScanResults]);
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
@@ -419,6 +460,16 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     });
   }, [packets, devices, ipToHostname]);
 
+  // Reset LLM trigger when starting a new scan
+  useEffect(() => {
+    if (status === "scanning") {
+      console.log("[SCAN] New scan started, resetting LLM trigger");
+      llmTriggeredRef.current = false;
+      setLLMResponse("");
+      setLlmLoading(false);
+    }
+  }, [status]);
+
   // Trigger LLM when scan completes. Status goes "done" -> "nmap-scanning" in same batch
   // when there are devices, so we rarely see "done". Trigger on "nmap-scanning" (packet scan
   // done, nmap starting), "complete" (includes nmap), or "done" (0 devices).
@@ -434,7 +485,8 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     setLlmLoading(true);
     setLLMResponse("");
     let firstChunk = true;
-    const flatNmapResults = nmapScanResults.flatMap((r) => r.results);
+    // Flatten nmap results from the actual structure: { hosts: [...] } or { results: [...] }
+    const flatNmapResults = nmapScanResults.flatMap((r) => r.hosts || r.results || []);
     console.log(packets);
     generateLLMResponse(packets, devices, (chunk) => {
       if (firstChunk) {

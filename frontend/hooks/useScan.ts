@@ -22,7 +22,18 @@ export interface Device {
 export interface NmapResult {
     ip: string;
     returncode: number | null;
-    stdout: string;
+    host_status: string;
+    open_ports: Array<{
+        port: string;
+        state: string;
+        service: string;
+        version?: string;
+    }>;
+    os_info: string | null;
+    scan_stats: {
+        latency?: string;
+        duration?: string;
+    };
     stderr: string;
     error?: string;
 }
@@ -37,17 +48,18 @@ export interface NmapProgress {
 }
 
 export interface NmapScanResult {
-    status: string;
-    message: string;
-    results: {
-        ip: string;
-        returncode: number | null;
-        stdout: string;
-        stderr: string;
-        error?: string;
-    }[];
-    timestamp: string;
-    nmap_args: string[];
+    // Original format (from /nmap-scan endpoint)
+    status?: string;
+    message?: string;
+    results?: NmapResult[];
+    timestamp?: string;
+    nmap_args?: string[];
+    
+    // Actual backend format (from nmap.py main() function)
+    generated_at?: string;
+    input?: string;
+    targets?: string[];
+    hosts?: NmapResult[];
 }
 
 export function useScan() {
