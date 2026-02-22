@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
 import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
-import DevicePanel from "./DevicePanel";
+import DevicePanel, { type SelectedDevice } from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
@@ -66,7 +66,29 @@ export function PingPointDashboard() {
   const { packets, devices, status, start } = useScan();
   const [llmResponse, setLLMResponse] = useState<string>("");
   const [llmLoading, setLlmLoading] = useState(false);
+  const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const ipToHostname = useAvahiHostnames(status === "scanning");
+
+  const selectedDevice = useMemo<SelectedDevice | null>(() => {
+    if (!selectedIp) return null;
+    const d = devices[selectedIp];
+    if (!d) return null;
+    const packetCount = packets.filter(
+      (p) => p.src_ip === selectedIp || p.dst_ip === selectedIp
+    ).length;
+    return {
+      ip: selectedIp,
+      hostname: d.hostname,
+      mac: d.mac,
+      vendor: d.vendor,
+      packetCount,
+    };
+  }, [selectedIp, devices, packets]);
+
+  const handleNodeSelect = useCallback(
+    (node: { data: { ip?: string } } | null) => setSelectedIp(node?.data.ip ?? null),
+    []
+  );
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
@@ -176,6 +198,7 @@ export function PingPointDashboard() {
             edges={edges}
             onNodesChange={onNodesChange as (changes: unknown[]) => void}
             onEdgesChange={onEdgesChange}
+            onNodeSelect={handleNodeSelect}
             className="min-h-0 flex-1"
           />
           <PacketTimeGraph
@@ -186,7 +209,7 @@ export function PingPointDashboard() {
         </div>
         <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <MetricsBar metrics={metrics} />
-          <DevicePanel />
+          <DevicePanel device={selectedDevice} onClose={() => setSelectedIp(null)} />
           {(llmLoading || llmResponse) && (
             <div className="flex flex-col gap-2 overflow-y-auto rounded-lg border border-border p-4">
               <h3 className="text-sm font-semibold">Security Analysis</h3>
