@@ -33,6 +33,116 @@ def to_text(x):
         return x.decode(errors="replace")
     return str(x)
 
+def clean_nmap_output(stdout: str) -> dict:
+    """
+    Parse nmap output and extract structured information, removing verbose fingerprint data.
+    """
+    lines = stdout.splitlines()
+    
+    # Remove fingerprint sections and other verbose output
+    cleaned_lines = []
+    skip_section = False
+    
+    for line in lines:
+        # Skip fingerprint sections
+        if "services unrecognized despite returning data" in line:
+            skip_section = True
+            continue
+        if skip_section and line.startswith("==============NEXT SERVICE FINGERPRINT"):
+            continue
+        if skip_section and line.strip() == "":
+            skip_section = False
+            continue
+        if skip_section:
+            continue
+        
+        # Skip other verbose sections
+        if "Please report any incorrect results at https://nmap.org/submit/" in line:
+            continue
+        if line.startswith("SF-Port") or line.startswith("SF:"):
+            continue
+            
+        cleaned_lines.append(line)
+    
+    cleaned_output = "\n".join(cleaned_lines).strip()
+    
+    # Parse structured data from the cleaned output
+    result = {
+        "raw_output": cleaned_output,
+        "host_status": "unknown",
+        "open_ports": [],
+        "os_info": None,
+        "scan_stats": {}
+    }
+    
+    # Extract host status
+    for line in cleaned_lines:
+        if "Host is up" in line:
+            result["host_status"] = "up"
+            # Extract latency if available
+            if "latency" in line.lower():
+                import re
+                latency_match = re.search(r'(\d+\.?\d*)(m?s)', line)
+                if latency_match:
+                    result["scan_stats"]["latency"] = latency_match.group(1) + latency_match.group(2)
+        elif "Host seems down" in line or "Note: Host seems down" in line:
+            result["host_status"] = "down"
+    
+    # Extract open ports and services
+    port_section = False
+    for line in cleaned_lines:
+        line = line.strip()
+        if line.startswith("PORT") and "STATE" in line and "SERVICE" in line:
+            port_section = True
+            continue
+        
+        if port_section and line:
+            # Stop at empty line or next section
+            if not line or line.startswith("Service detection") or line.startswith("OS detection"):
+                port_section = False
+                continue
+                
+            # Parse port line: "22/tcp   open  ssh     OpenSSH 8.9p1"
+            parts = line.split()
+            if len(parts) >= 3 and "/" in parts[0]:
+                port_info = {
+                    "port": parts[0],
+                    "state": parts[1],
+                    "service": parts[2] if len(parts) > 2 else "unknown"
+                }
+                
+                # Add version info if available
+                if len(parts) > 3:
+                    port_info["version"] = " ".join(parts[3:])
+                
+                result["open_ports"].append(port_info)
+    
+    # Extract OS information
+    os_lines = []
+    os_section = False
+    for line in cleaned_lines:
+        if "OS details:" in line or "Running:" in line:
+            os_section = True
+            os_lines.append(line)
+        elif os_section and line.strip() and not line.startswith("Network Distance"):
+            os_lines.append(line)
+        elif os_section and not line.strip():
+            break
+    
+    if os_lines:
+        result["os_info"] = "\n".join(os_lines)
+    
+    # Extract scan statistics
+    for line in cleaned_lines:
+        if "Nmap done" in line:
+            # Extract timing info
+            import re
+            time_match = re.search(r'in (\d+\.?\d*) seconds', line)
+            if time_match:
+                result["scan_stats"]["duration"] = time_match.group(1) + "s"
+    
+    return result
+
 def load_ips(path: str) -> list[str]:
     with open(path, "r") as f:
         data = json.load(f)
@@ -69,17 +179,27 @@ def run_nmap(ip: str, nmap_args: list[str], timeout: int) -> dict:
             timeout=timeout,
             check=False,
         )
+        
+        # Clean and parse the output
+        cleaned_data = clean_nmap_output(to_text(proc.stdout))
+        
         return {
             "ip": ip,
             "returncode": proc.returncode,
-            "stdout": to_text(proc.stdout),
+            "host_status": cleaned_data["host_status"],
+            "open_ports": cleaned_data["open_ports"],
+            "os_info": cleaned_data["os_info"],
+            "scan_stats": cleaned_data["scan_stats"],
             "stderr": to_text(proc.stderr),
         }
     except subprocess.TimeoutExpired as e:
         return {
             "ip": ip,
             "returncode": None,
-            "stdout": to_text(getattr(e, "stdout", None)),
+            "host_status": "timeout",
+            "open_ports": [],
+            "os_info": None,
+            "scan_stats": {},
             "stderr": to_text(getattr(e, "stderr", None)) + "\nTimed out.",
             "error": "timeout",
         }
@@ -152,7 +272,10 @@ async def stream_nmap_scan(ips: List[str], timeout: int = 60, nmap_args: List[st
                 "result": {
                     "ip": ip,
                     "returncode": None,
-                    "stdout": "",
+                    "host_status": "error",
+                    "open_ports": [],
+                    "os_info": None,
+                    "scan_stats": {},
                     "stderr": f"Error: {str(e)}",
                     "error": "exception"
                 },

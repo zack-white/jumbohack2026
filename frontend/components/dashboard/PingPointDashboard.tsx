@@ -85,6 +85,18 @@ const DevicePopup = ({
   selectedNmapResults: Array<{
     ip: string;
     returncode?: number | null;
+    host_status?: string;
+    open_ports?: Array<{
+      port: string;
+      state: string;
+      service: string;
+      version?: string;
+    }>;
+    os_info?: string | null;
+    scan_stats?: {
+      latency?: string;
+      duration?: string;
+    };
     stdout?: string;
     stderr?: string;
     error?: string;
@@ -99,7 +111,7 @@ const DevicePopup = ({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="bg-background border border-border rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] mx-4 overflow-hidden"
+        className="bg-background border border-border rounded-lg shadow-2xl max-w-3xl w-full max-h-[85vh] mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -112,7 +124,7 @@ const DevicePopup = ({
           </button>
         </div>
         
-        <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(80vh-120px)]">
+        <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(85vh-120px)]">
           {/* Device Information */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -148,30 +160,98 @@ const DevicePopup = ({
             <h4 className="text-sm font-semibold mb-3">Nmap Scan Results</h4>
             
             {selectedNmapResults.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {selectedNmapResults.map((result, index) => (
-                  <div key={index} className="border border-border rounded-lg p-3 bg-muted/50">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-medium text-sm">{result.ip}</span>
-                      <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded">
-                        Code: {result.returncode ?? "timeout"}
-                      </span>
+                  <div key={index} className="border border-border rounded-lg p-4 bg-muted/50">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="space-y-1">
+                        <span className="font-medium text-sm">{result.ip}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            result.host_status === 'up' ? 'bg-green-100 text-green-800' :
+                            result.host_status === 'down' ? 'bg-red-100 text-red-800' :
+                            result.host_status === 'timeout' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {result.host_status || 'unknown'}
+                          </span>
+                          {result.scan_stats?.latency && (
+                            <span className="text-xs text-muted-foreground">
+                              Latency: {result.scan_stats.latency}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        <div>Code: {result.returncode ?? "timeout"}</div>
+                        {result.scan_stats?.duration && (
+                          <div>Duration: {result.scan_stats.duration}</div>
+                        )}
+                      </div>
                     </div>
-                    
+
+                    {/* Open Ports */}
+                    {result.open_ports && result.open_ports.length > 0 && (
+                      <div className="mb-3">
+                        <div className="text-xs font-medium mb-2">Open Ports:</div>
+                        <div className="space-y-2">
+                          {result.open_ports.map((port, portIndex) => (
+                            <div key={portIndex} className="bg-background p-2 rounded border">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="font-mono text-sm font-medium">{port.port}</span>
+                                  <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                                    port.state === 'open' ? 'bg-green-100 text-green-700' :
+                                    port.state === 'closed' ? 'bg-red-100 text-red-700' :
+                                    'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {port.state}
+                                  </span>
+                                </div>
+                                <div className="text-right text-xs">
+                                  <div className="font-medium">{port.service}</div>
+                                  {port.version && (
+                                    <div className="text-muted-foreground">{port.version}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OS Information */}
+                    {result.os_info && (
+                      <div className="mb-3">
+                        <div className="text-xs font-medium mb-2">OS Information:</div>
+                        <div className="text-xs bg-background p-2 rounded border">
+                          {result.os_info}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Raw output fallback */}
                     {result.stdout && (
-                      <div className="mt-3">
-                        <div className="text-xs font-medium mb-2">Output:</div>
-                        <div className="text-xs bg-background p-3 rounded border font-mono overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto">
+                      <div className="mb-3">
+                        <div className="text-xs font-medium mb-2">Raw Output:</div>
+                        <div className="text-xs bg-background p-3 rounded border font-mono overflow-x-auto whitespace-pre-wrap max-h-32 overflow-y-auto">
                           {result.stdout}
                         </div>
                       </div>
                     )}
                     
-                    {result.stderr && (
+                    {/* Error information */}
+                    {(result.stderr || result.error) && (
                       <div className="mt-3">
-                        <div className="text-xs font-medium mb-2 text-destructive">Error:</div>
+                        <div className="text-xs font-medium mb-2 text-destructive">
+                          {result.error === 'timeout' ? 'Scan Timeout' : 'Error'}:
+                        </div>
                         <div className="text-xs bg-destructive/5 border border-destructive/20 p-2 rounded">
-                          {result.stderr}
+                          {result.error === 'timeout' ? 
+                            'The scan timed out. The host may be unreachable or heavily firewalled.' : 
+                            result.stderr
+                          }
                         </div>
                       </div>
                     )}

@@ -50,6 +50,7 @@ export default function DashboardPage() {
           border: 1px solid #23ECFF;
           color: #23ECFF;
           transition: all 0.2s ease;
+          cursor: pointer;
         }
         .rescan-button:hover:not(:disabled) {
           background-color: rgba(35, 236, 255, 0.1);

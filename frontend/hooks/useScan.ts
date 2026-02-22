@@ -110,14 +110,6 @@ export function useScan() {
                 toast.error("Nmap scan failed", {
                   description: `HTTP ${response.status}: ${typeof detail === "string" ? detail.slice(0, 120) : String(detail).slice(0, 120)}`,
                 });
-                
-                // Try GET request as fallback to test if endpoint exists
-                const getResponse = await fetch('/api/pi/nmap');
-                console.log('[NMAP] GET fallback status:', getResponse.status);
-                if (getResponse.ok) {
-                    const getResult = await getResponse.json();
-                    console.log('[NMAP] GET fallback worked:', getResult);
-                }
             }
         } catch (error) {
             const newIps = ips.filter(ip => !scannedIpsRef.current.has(ip));

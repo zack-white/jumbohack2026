@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-26T18:24:06.470324",
+  "generated_at": "2026-02-21T11:44:27.711632",
   "input": "scan_results.json",
   "nmap_args": [
     "-sV",
@@ -18,32 +18,74 @@
     {
       "ip": "10.0.1.1",
       "returncode": null,
-      "stdout": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-02-26 18:24 EST\n",
+      "host_status": "timeout",
+      "open_ports": [],
+      "os_info": null,
+      "scan_stats": {},
       "stderr": "\nTimed out.",
       "error": "timeout"
     },
     {
       "ip": "10.0.1.4",
       "returncode": 0,
-      "stdout": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-02-26 18:25 EST\nNmap scan report for 10.0.1.4\nHost is up (0.015s latency).\nNot shown: 197 closed tcp ports (reset)\nPORT     STATE SERVICE VERSION\n3000/tcp open  ppp?\n5000/tcp open  rtsp\n7000/tcp open  rtsp\n3 services unrecognized despite returning data. If you know the service/version, please submit the following fingerprints at https://nmap.org/cgi-bin/submit.cgi?new-service :\n==============NEXT SERVICE FINGERPRINT (SUBMIT INDIVIDUALLY)==============\nSF-Port3000-TCP:V=7.95%I=7%D=2/26%Time=69A0D65E%P=aarch64-unknown-linux-gn\nSF:u%r(GetRequest,4AF2,\"HTTP/1\\.1\\x20200\\x20OK\\r\\nVary:\\x20rsc,\\x20next-ro\nSF:uter-state-tree,\\x20next-router-prefetch,\\x20next-router-segment-prefet\nSF:ch,\\x20Accept-Encoding\\r\\nCache-Control:\\x20no-store,\\x20must-revalidat\nSF:e\\r\\nX-Powered-By:\\x20Next\\.js\\r\\nContent-Type:\\x20text/html;\\x20charse\nSF:t=utf-8\\r\\nDate:\\x20Sat,\\x2021\\x20Feb\\x202026\\x2023:25:21\\x20GMT\\r\\nCon\nSF:nection:\\x20close\\r\\n\\r\\n<!DOCTYPE\\x20html><html\\x20lang=\\\"en\\\"\\x20clas\nSF:s=\\\"dark\\\"><head><meta\\x20charSet=\\\"utf-8\\\"/><meta\\x20name=\\\"viewport\\\"\nSF:\\x20content=\\\"width=device-width,\\x20initial-scale=1\\\"/><link\\x20rel=\\\"\nSF:stylesheet\\\"\\x20href=\\\"/_next/static/chunks/app_globals_71f961d1\\.css\\\"\nSF:\\x20data-precedence=\\\"next_static/chunks/app_globals_71f961d1\\.css\\\"/><\nSF:link\\x20rel=\\\"preload\\\"\\x20as=\\\"script\\\"\\x20fetchPriority=\\\"low\\\"\\x20hr\nSF:ef=\\\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-cl\nSF:ient_ts_956a0d3a\\._\\.js\\\"/><script\\x20src=\\\"/_next/static/chunks/node_m\nSF:odules_next_dist_compiled_react-dom_1e674e59\\._\\.js\\\"\\x20async=\\\"\\\"></s\nSF:cript><script\\x20src=\\\"/_next/static/chunks/node_modules_next_dist_comp\nSF:iled_react-server\")%r(Help,2F,\"HTTP/1\\.1\\x20400\\x20Bad\\x20Request\\r\\nCo\nSF:nnection:\\x20close\\r\\n\\r\\n\")%r(NCP,2F,\"HTTP/1\\.1\\x20400\\x20Bad\\x20Reque\nSF:st\\r\\nConnection:\\x20close\\r\\n\\r\\n\")%r(HTTPOptions,AB,\"HTTP/1\\.1\\x20400\nSF:\\x20Bad\\x20Request\\r\\nvary:\\x20rsc,\\x20next-router-state-tree,\\x20next-\nSF:router-prefetch,\\x20next-router-segment-prefetch\\r\\nDate:\\x20Sat,\\x2021\nSF:\\x20Feb\\x202026\\x2023:25:21\\x20GMT\\r\\nConnection:\\x20close\\r\\n\\r\\n\")%r(\nSF:RTSPRequest,AB,\"HTTP/1\\.1\\x20400\\x20Bad\\x20Request\\r\\nvary:\\x20rsc,\\x20\nSF:next-router-state-tree,\\x20next-router-prefetch,\\x20next-router-segment\nSF:-prefetch\\r\\nDate:\\x20Sat,\\x2021\\x20Feb\\x202026\\x2023:25:21\\x20GMT\\r\\nC\nSF:onnection:\\x20close\\r\\n\\r\\n\")%r(RPCCheck,2F,\"HTTP/1\\.1\\x20400\\x20Bad\\x2\nSF:0Request\\r\\nConnection:\\x20close\\r\\n\\r\\n\")%r(DNSVersionBindReqTCP,2F,\"H\nSF:TTP/1\\.1\\x20400\\x20Bad\\x20Request\\r\\nConnection:\\x20close\\r\\n\\r\\n\")%r(D\nSF:NSStatusRequestTCP,2F,\"HTTP/1\\.1\\x20400\\x20Bad\\x20Request\\r\\nConnection\nSF::\\x20close\\r\\n\\r\\n\")%r(SSLSessionReq,2F,\"HTTP/1\\.1\\x20400\\x20Bad\\x20Req\nSF:uest\\r\\nConnection:\\x20close\\r\\n\\r\\n\");\n==============NEXT SERVICE FINGERPRINT (SUBMIT INDIVIDUALLY)==============\nSF-Port5000-TCP:V=7.95%I=7%D=2/26%Time=69A0D659%P=aarch64-unknown-linux-gn\nSF:u%r(GetRequest,8F,\"HTTP/1\\.1\\x20403\\x20Forbidden\\r\\nContent-Length:\\x20\nSF:0\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nX-Apple-ProcessingTime:\\x201\\r\\nX\nSF:-Apple-RequestReceivedTimestamp:\\x20197299402\\r\\n\\r\\n\")%r(RTSPRequest,8\nSF:F,\"RTSP/1\\.0\\x20403\\x20Forbidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20\nSF:AirTunes/935\\.7\\.1\\r\\nX-Apple-ProcessingTime:\\x201\\r\\nX-Apple-RequestRe\nSF:ceivedTimestamp:\\x20197299444\\r\\n\\r\\n\")%r(HTTPOptions,8F,\"HTTP/1\\.1\\x20\nSF:403\\x20Forbidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\\nSF:.1\\r\\nX-Apple-ProcessingTime:\\x205\\r\\nX-Apple-RequestReceivedTimestamp:\nSF:\\x20197304458\\r\\n\\r\\n\")%r(FourOhFourRequest,8F,\"HTTP/1\\.1\\x20403\\x20For\nSF:bidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nX-Ap\nSF:ple-ProcessingTime:\\x201\\r\\nX-Apple-RequestReceivedTimestamp:\\x20197304\nSF:478\\r\\n\\r\\n\")%r(SIPOptions,A1,\"RTSP/1\\.0\\x20403\\x20Forbidden\\r\\nContent\nSF:-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nCSeq:\\x2042\\x20OPTION\nSF:S\\r\\nX-Apple-ProcessingTime:\\x201\\r\\nX-Apple-RequestReceivedTimestamp:\\\nSF:x20197304500\\r\\n\\r\\n\");\n==============NEXT SERVICE FINGERPRINT (SUBMIT INDIVIDUALLY)==============\nSF-Port7000-TCP:V=7.95%I=7%D=2/26%Time=69A0D65E%P=aarch64-unknown-linux-gn\nSF:u%r(RTSPRequest,8F,\"RTSP/1\\.0\\x20403\\x20Forbidden\\r\\nContent-Length:\\x2\nSF:00\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nX-Apple-ProcessingTime:\\x206\\r\\n\nSF:X-Apple-RequestReceivedTimestamp:\\x20197299390\\r\\n\\r\\n\")%r(GetRequest,8\nSF:F,\"HTTP/1\\.1\\x20403\\x20Forbidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20\nSF:AirTunes/935\\.7\\.1\\r\\nX-Apple-ProcessingTime:\\x202\\r\\nX-Apple-RequestRe\nSF:ceivedTimestamp:\\x20197304416\\r\\n\\r\\n\")%r(HTTPOptions,8F,\"HTTP/1\\.1\\x20\nSF:403\\x20Forbidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\\nSF:.1\\r\\nX-Apple-ProcessingTime:\\x203\\r\\nX-Apple-RequestReceivedTimestamp:\nSF:\\x20197304434\\r\\n\\r\\n\")%r(FourOhFourRequest,8F,\"HTTP/1\\.1\\x20403\\x20For\nSF:bidden\\r\\nContent-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nX-Ap\nSF:ple-ProcessingTime:\\x202\\r\\nX-Apple-RequestReceivedTimestamp:\\x20197304\nSF:464\\r\\n\\r\\n\")%r(SIPOptions,A1,\"RTSP/1\\.0\\x20403\\x20Forbidden\\r\\nContent\nSF:-Length:\\x200\\r\\nServer:\\x20AirTunes/935\\.7\\.1\\r\\nCSeq:\\x2042\\x20OPTION\nSF:S\\r\\nX-Apple-ProcessingTime:\\x204\\r\\nX-Apple-RequestReceivedTimestamp:\\\nSF:x20197304486\\r\\n\\r\\n\");\nMAC Address: 1A:5B:60:B2:58:F9 (Unknown)\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 19.39 seconds\n",
+      "host_status": "down",
+      "open_ports": [],
+      "os_info": null,
+      "scan_stats": {
+        "duration": "1.64s"
+      },
       "stderr": ""
     },
     {
       "ip": "10.0.1.5",
       "returncode": 0,
-      "stdout": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-02-26 18:25 EST\nNmap scan report for 10.0.1.5\nHost is up (0.29s latency).\nAll 200 scanned ports on 10.0.1.5 are in ignored states.\nNot shown: 200 filtered tcp ports (no-response)\nMAC Address: D0:57:7E:CB:8C:5C (Unknown)\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 59.58 seconds\n",
+      "host_status": "up",
+      "open_ports": [],
+      "os_info": null,
+      "scan_stats": {
+        "latency": "0.27s",
+        "duration": "55.36s"
+      },
       "stderr": ""
     },
     {
       "ip": "10.0.1.6",
       "returncode": 0,
-      "stdout": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-02-26 18:26 EST\nNmap scan report for 10.0.1.6\nHost is up (0.0000040s latency).\nNot shown: 198 closed tcp ports (reset)\nPORT    STATE SERVICE VERSION\n22/tcp  open  ssh     OpenSSH 10.0p2 Debian 7 (protocol 2.0)\n111/tcp open  rpcbind 2-4 (RPC #100000)\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 6.34 seconds\n",
+      "host_status": "up",
+      "open_ports": [
+        {
+          "port": "22/tcp",
+          "state": "open",
+          "service": "ssh",
+          "version": "OpenSSH 10.0p2 Debian 7 (protocol 2.0)"
+        },
+        {
+          "port": "111/tcp",
+          "state": "open",
+          "service": "rpcbind",
+          "version": "2-4 (RPC #100000)"
+        },
+        {
+          "port": "8000/tcp",
+          "state": "open",
+          "service": "http",
+          "version": "Uvicorn"
+        }
+      ],
+      "os_info": null,
+      "scan_stats": {
+        "latency": "0.0000040s",
+        "duration": "11.41s"
+      },
       "stderr": ""
     },
     {
       "ip": "140.82.114.21",
       "returncode": null,
-      "stdout": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-02-26 18:26 EST\n",
+      "host_status": "timeout",
+      "open_ports": [],
+      "os_info": null,
+      "scan_stats": {},
       "stderr": "\nTimed out.",
       "error": "timeout"
     }
