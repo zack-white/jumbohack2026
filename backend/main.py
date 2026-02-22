@@ -14,7 +14,7 @@ def ping(timeout: float = 3.0):
     try:
         # ping.py prints to stdout by default; we want a Python dict back.
         # So: call its internal helpers if you have them, otherwise expose a function.
-        return ping.get_avahi_devices(timeout=timeout)
+        return get_avahi_devices(timeout=timeout)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
