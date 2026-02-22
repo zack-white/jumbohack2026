@@ -19,28 +19,40 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
   const hasData = metrics && (metrics.deviceCount > 0 || metrics.packetCount > 0);
 
   return (
-    <Card className={cn(className)}>
-      <CardContent className="flex flex-row flex-wrap items-center justify-between gap-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Devices</span>
-          <span className="font-semibold">
-            {hasData ? metrics!.deviceCount.toLocaleString() : "—"}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Connections</span>
-          <span className="font-semibold">
-            {hasData ? metrics!.connectionCount.toLocaleString() : "—"}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Packets</span>
-          <span className="font-semibold">
-            {hasData ? metrics!.packetCount.toLocaleString() : "—"}
-          </span>
-          <Info className="text-muted-foreground h-3.5 w-3.5" aria-hidden />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="w-full flex gap-4">
+      <Card className={cn(className)}>
+        <CardContent>
+          <div className="flex flex-col gap-2">
+            <p>Active Connections</p>
+            <div>
+              <p className="text-2xl font-bold">{hasData ? metrics!.connectionCount.toLocaleString() : "—"}</p>
+              {hasData && <p className="text-xs text-muted-foreground">connections</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={cn(className)}>
+        <CardContent>
+          <div className="flex flex-col gap-2">
+            <p>Devices</p>
+            <div>
+              <p className="text-2xl font-bold">{hasData ? metrics!.deviceCount.toLocaleString() : "—"}</p>
+              {hasData && <p className="text-xs text-muted-foreground">devices</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={cn(className)}>
+        <CardContent>
+          <div className="flex flex-col gap-2">
+            <p>Packets Sent</p>
+            <div>
+              <p className="text-2xl font-bold">{hasData ? metrics!.packetCount.toLocaleString() : "—"}</p>
+              {hasData && <p className="text-xs text-muted-foreground">packets</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

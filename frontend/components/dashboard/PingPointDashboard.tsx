@@ -197,7 +197,7 @@ export function PingPointDashboard() {
         <span className="text-sm text-muted-foreground">Status: {status}</span>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_420px]">
         <div className="flex min-h-0 flex-col gap-4">
           <NetworkGraph
             nodes={nodes}
@@ -207,6 +207,7 @@ export function PingPointDashboard() {
             onNodeSelect={handleNodeSelect}
             className="min-h-0 flex-1"
           />
+          <MetricsBar metrics={metrics} />
           <PacketTimeGraph
             data={timeSeriesData}
             isStreaming={status === "scanning"}
@@ -214,8 +215,7 @@ export function PingPointDashboard() {
           />
         </div>
         <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
-          <MetricsBar metrics={metrics} />
-          <DevicePanel device={selectedDevice} onClose={() => setSelectedIp(null)} />
+          {/* <DevicePanel device={selectedDevice} onClose={() => setSelectedIp(null)} /> */}
           {(llmLoading || llmResponse) && (
             <div className="flex flex-col gap-2 overflow-y-auto rounded-lg border border-border p-4">
               <h3 className="text-sm font-semibold">Security Analysis</h3>
