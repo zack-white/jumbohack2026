@@ -51,7 +51,7 @@ export default function PacketTimeGraph({
   className,
   data,
   isStreaming,
-  summary,
+  summary: _summary,
 }: PacketTimeGraphProps) {
   const hasData = data.length >= 1 && data.some((d) => d.count > 0);
 
@@ -84,12 +84,6 @@ export default function PacketTimeGraph({
     { label: "Duration", value: fmtTime(duration) },
     { label: "Peak", value: `${fmtCount(peakCount)} req / 5s @ ${fmtTime(peakAt)}` },
     { label: "Avg", value: `${avgPerBucket.toFixed(1)} req / 5s` },
-    ...(summary
-      ? [
-          { label: "Devices", value: summary.deviceCount.toLocaleString() },
-          { label: "Connections", value: summary.connectionCount.toLocaleString() },
-        ]
-      : []),
   ];
 
   const maxTime = data[data.length - 1].time;
@@ -115,9 +109,27 @@ export default function PacketTimeGraph({
   return (
     <Card className={cn("flex flex-col", className)}>
       <CardContent className="flex min-h-0 flex-1 flex-col pt-0">
-        <div className="flex flex-col gap-2 h-full">
-          <p>Network Traffic</p>
-          <div className="flex min-h-0 flex-1 gap-6 bg-background p-2 rounded">
+        <div className="flex flex-col gap-3 h-full">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-md font-medium">Network Traffic</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {stats.map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-sm border border-border/60 bg-muted/40 px-3 py-1"
+                >
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {s.label}
+                  </span>
+                  <span className="ml-2 text-sm font-semibold tabular-nums text-foreground">
+                    {s.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-1 bg-background/60 p-2 rounded-lg border border-border/60">
             <div className="min-h-0 min-w-0 flex-1">
               <svg
                 viewBox={`0 0 ${CHART_W} ${CHART_H}`}
@@ -209,15 +221,6 @@ export default function PacketTimeGraph({
                   ))}
                 </g>
               </svg>
-            </div>
-
-            <div className="grid min-w-[220px] grid-cols-2 content-around gap-x-6 gap-y-3 border-l pl-5">
-              {stats.map((s) => (
-                <div key={s.label}>
-                  <div className="text-muted-foreground text-[10px] leading-tight">{s.label}</div>
-                  <div className="text-lg font-semibold tabular-nums">{s.value}</div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
