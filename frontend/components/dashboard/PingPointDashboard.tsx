@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
 import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
@@ -50,9 +50,6 @@ export function PingPointDashboard() {
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
   const { packets, devices, status, start } = useScan();
 
-  const seenIps = useRef<Map<string, number>>(new Map());
-  const seenConnections = useRef<Set<string>>(new Set());
-
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
     const toMs = (t: string | number) =>
@@ -81,27 +78,36 @@ export function PingPointDashboard() {
   );
 
   useEffect(() => {
-    for (const ip of Object.keys(devices)) {
-      if (!seenIps.current.has(ip)) {
-        const index = seenIps.current.size;
-        seenIps.current.set(ip, index);
-        setNodes((prev) => [...prev, makeNode(ip, index)]);
-      }
-    }
+    const deviceIps = Object.keys(devices);
+    const connectionKeys = new Set<string>();
+    const degree = new Map<string, number>();
 
     for (const pkt of packets) {
       const { src_ip, dst_ip } = pkt;
       if (!src_ip || !dst_ip) continue;
       const key = src_ip < dst_ip ? `${src_ip}|${dst_ip}` : `${dst_ip}|${src_ip}`;
-      if (!seenConnections.current.has(key)) {
-        seenConnections.current.add(key);
-        setEdges((prev) => [...prev, { id: key, source: src_ip, target: dst_ip }]);
-      }
+      connectionKeys.add(key);
+      degree.set(src_ip, (degree.get(src_ip) ?? 0) + 1);
+      degree.set(dst_ip, (degree.get(dst_ip) ?? 0) + 1);
     }
 
+    const sortedIps = [...deviceIps].sort((a, b) => {
+      const dA = degree.get(a) ?? 0;
+      const dB = degree.get(b) ?? 0;
+      return dB - dA;
+    });
+
+    const newNodes = sortedIps.map((ip, index) => makeNode(ip, index));
+    const newEdges: Edge[] = Array.from(connectionKeys).map((key) => {
+      const [a, b] = key.split("|");
+      return { id: key, source: a, target: b };
+    });
+
+    setNodes(newNodes);
+    setEdges(newEdges);
     setMetrics({
-      deviceCount: seenIps.current.size,
-      connectionCount: seenConnections.current.size,
+      deviceCount: deviceIps.length,
+      connectionCount: connectionKeys.size,
       packetCount: packets.length,
     });
   }, [packets, devices]);
