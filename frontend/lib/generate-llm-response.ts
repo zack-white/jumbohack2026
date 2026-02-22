@@ -1,7 +1,10 @@
 import { type Packet, type Device } from "@/hooks/useScan";
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+const client = new Anthropic({
+    apiKey: process.env.NEXT_PUBLIC_CLAUDE_API_KEY,
+    dangerouslyAllowBrowser: true,
+});
 
 function buildPrompt(packets: Packet[], devices: Record<string, Device>): string {
     const deviceLines = Object.entries(devices).map(([ip, d]) =>
@@ -44,19 +47,28 @@ ${packetLines || "  No packets captured"}
 
 ---
 
-Provide your analysis in 3-5 short paragraphs. End with a bullet list of any specific actions the user should take, or "No action required" if everything looks clean.`;
+Provide your analysis in 3-5 short paragraphs. End with a list of any specific actions the user should take, or "No action required" if everything looks clean.
+
+Do not use markdown formatting. No headers, no bold, no asterisks, no hyphens as bullets. Use plain sentences and numbered lists only.`;
 }
 
 export async function generateLLMResponse(
     packets: Packet[],
-    devices: Record<string, Device>
-): Promise<string> {
+    devices: Record<string, Device>,
+    onChunk: (chunk: string) => void
+): Promise<void> {
     const prompt = buildPrompt(packets, devices);
 
-    const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: prompt,
+    const stream = await client.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 5000,
+        messages: [{ role: "user", content: prompt }],
+        stream: true,
     });
 
-    return response.text ?? "No analysis returned.";
+    for await (const event of stream) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            onChunk(event.delta.text);
+        }
+    }
 }

@@ -171,9 +171,15 @@ export function PingPointDashboard() {
   useEffect(() => {
     if (status === "done") {
       setLlmLoading(true);
-      // generateLLMResponse(packets, devices)
-      //   .then((res) => setLLMResponse(res))
-      //   .finally(() => setLlmLoading(false));
+      setLLMResponse("");
+      let firstChunk = true;
+      generateLLMResponse(packets, devices, (chunk) => {
+        if (firstChunk) {
+          setLlmLoading(false);
+          firstChunk = false;
+        }
+        setLLMResponse((prev) => prev + chunk);
+      }).finally(() => setLlmLoading(false));
     }
   }, [status]);
 
