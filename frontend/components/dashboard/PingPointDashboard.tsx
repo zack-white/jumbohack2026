@@ -355,6 +355,7 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     setLLMResponse("");
     let firstChunk = true;
     const flatNmapResults = nmapScanResults.flatMap((r) => r.results);
+    console.log(packets);
     generateLLMResponse(packets, devices, (chunk) => {
       if (firstChunk) {
         setLlmLoading(false);
