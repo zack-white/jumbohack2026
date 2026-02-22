@@ -72,6 +72,123 @@ interface PingPointDashboardProps {
   onScanStateChange?: (status: string, startFn: () => void) => void;
 }
 
+// Device popup component moved outside of render function
+const DevicePopup = ({ 
+  selectedDevice, 
+  selectedNmapResults, 
+  status, 
+  onClose 
+}: {
+  selectedDevice: SelectedDevice;
+  selectedNmapResults: Array<{
+    ip: string;
+    returncode?: number | null;
+    stdout?: string;
+    stderr?: string;
+    error?: string;
+  }>;
+  status: string;
+  onClose: () => void;
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="bg-background border border-border rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="text-lg font-semibold">Device Details</h3>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(80vh-120px)]">
+          {/* Device Information */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="font-medium">IP Address:</span>
+              <div className="text-muted-foreground">{selectedDevice.ip}</div>
+            </div>
+            {selectedDevice.hostname && (
+              <div>
+                <span className="font-medium">Hostname:</span>
+                <div className="text-muted-foreground">{selectedDevice.hostname}</div>
+              </div>
+            )}
+            {selectedDevice.mac && (
+              <div>
+                <span className="font-medium">MAC Address:</span>
+                <div className="text-muted-foreground font-mono text-xs">{selectedDevice.mac}</div>
+              </div>
+            )}
+            {selectedDevice.vendor && (
+              <div>
+                <span className="font-medium">Vendor:</span>
+                <div className="text-muted-foreground">{selectedDevice.vendor}</div>
+              </div>
+            )}
+            <div>
+              <span className="font-medium">Packet Count:</span>
+              <div className="text-muted-foreground">{selectedDevice.packetCount}</div>
+            </div>
+          </div>
+
+          {/* Nmap Results */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold mb-3">Nmap Scan Results</h4>
+            
+            {selectedNmapResults.length > 0 ? (
+              <div className="space-y-3">
+                {selectedNmapResults.map((result, index) => (
+                  <div key={index} className="border border-border rounded-lg p-3 bg-muted/50">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-medium text-sm">{result.ip}</span>
+                      <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded">
+                        Code: {result.returncode ?? "timeout"}
+                      </span>
+                    </div>
+                    
+                    {result.stdout && (
+                      <div className="mt-3">
+                        <div className="text-xs font-medium mb-2">Output:</div>
+                        <div className="text-xs bg-background p-3 rounded border font-mono overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto">
+                          {result.stdout}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {result.stderr && (
+                      <div className="mt-3">
+                        <div className="text-xs font-medium mb-2 text-destructive">Error:</div>
+                        <div className="text-xs bg-destructive/5 border border-destructive/20 p-2 rounded">
+                          {result.stderr}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded border text-center">
+                No nmap scan results available for this device.
+                {status === "scanning" ? " Scan in progress..." : " Run a scan to see results."}
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProps = {}) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -120,9 +237,21 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   }, [selectedIp, devices, packets]);
 
   const handleNodeSelect = useCallback(
-    (node: { data: { ip?: string } } | null) => setSelectedIp(node?.data.ip ?? null),
+    (node: { data: { ip?: string } } | null) => {
+      setSelectedIp(node?.data.ip ?? null);
+      console.log('[DASHBOARD] Node selected:', node?.data.ip);
+    },
     []
   );
+
+  // Get nmap results for the selected IP
+  const selectedNmapResults = useMemo(() => {
+    if (!selectedIp) return [];
+    return nmapScanResults
+      .flatMap(scanResult => 
+        scanResult.results.filter(result => result.ip === selectedIp)
+      );
+  }, [selectedIp, nmapScanResults]);
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
@@ -241,14 +370,28 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
       <div className="flex min-h-0 flex-1 overflow-hidden gap-6">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-          <NetworkGraph
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange as (changes: unknown[]) => void}
-            onEdgesChange={onEdgesChange}
-            onNodeSelect={handleNodeSelect}
-            className="min-h-0 flex-1"
-          />
+          <div className="relative flex-1 min-h-0">
+            <NetworkGraph
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange as (changes: unknown[]) => void}
+              onEdgesChange={onEdgesChange}
+              onNodeSelect={handleNodeSelect}
+              className="min-h-0 flex-1"
+            />
+            
+            {/* Device popup overlay */}
+            <AnimatePresence>
+              {selectedIp && selectedDevice && (
+                <DevicePopup 
+                  selectedDevice={selectedDevice}
+                  selectedNmapResults={selectedNmapResults}
+                  status={status}
+                  onClose={() => setSelectedIp(null)}
+                />
+              )}
+            </AnimatePresence>
+          </div>
           <MetricsBar metrics={metrics} />
           <PacketTimeGraph
             data={timeSeriesData}
@@ -256,6 +399,7 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
             summary={summary}
           />
         </div>
+        
         <AnimatePresence>
           {(llmLoading || llmResponse) && (
             <motion.aside
@@ -276,44 +420,6 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
                   )}
                 </CardContent>
               </Card>
-              
-              {nmapScanResults.length > 0 && (
-                <Card className="flex flex-col overflow-hidden">
-                  <CardContent className="py-4">
-                    <h3 className="text-sm font-semibold mb-3">Nmap Scan Results</h3>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {nmapScanResults.slice(-3).map((scanResult, index) => (
-                        <div key={index} className="text-xs p-3 bg-muted rounded">
-                          <div className="font-medium mb-2">{scanResult.message}</div>
-                          <div className="text-muted-foreground text-xs mb-2">
-                            {new Date(scanResult.timestamp).toLocaleTimeString()}
-                          </div>
-                          <div className="space-y-2">
-                            {scanResult.results.map((result, resultIndex) => (
-                              <div key={resultIndex} className="border-l-2 border-primary/20 pl-2">
-                                <div className="font-medium">{result.ip}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  Return code: {result.returncode ?? "timeout"}
-                                </div>
-                                {result.stdout && (
-                                  <div className="mt-1 text-xs bg-background p-2 rounded font-mono overflow-x-auto">
-                                    {result.stdout.slice(0, 200)}{result.stdout.length > 200 ? "..." : ""}
-                                  </div>
-                                )}
-                                {result.stderr && (
-                                  <div className="mt-1 text-xs text-destructive">
-                                    Error: {result.stderr.slice(0, 100)}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </motion.aside>
           )}
         </AnimatePresence>
