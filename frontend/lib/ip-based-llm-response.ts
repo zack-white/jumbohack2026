@@ -1,6 +1,8 @@
 import { type Device, type NmapResult } from "@/hooks/useScan";
 import { streamLLM } from "./generate-llm-response";
 
+// Check if individual device LLM includes nmap context
+
 function buildIPPrompt(
     ip: string,
     device: Device,

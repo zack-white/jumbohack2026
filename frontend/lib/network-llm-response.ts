@@ -113,8 +113,10 @@ function buildNetworkPrompt(
         return `  [+${elapsed}s] ${p.protocol} ${src} → ${dst}  ${extras}`;
     }).join("\n");
 
-    return `You are a network security analyst. A 60-second packet capture was taken from a private local network.
+    return `You are a network security analyst. A 60-second packet capture was taken from a private local network using a Raspberry Pi security scanner (IP: 10.0.1.6).
 Analyze the data below and provide a clear, plain-English security report for a non-technical audience.
+
+The Raspberry Pi (10.0.1.6) performed both packet capture and nmap port scans to discover devices and services. Any traffic from/to 10.0.1.6 is the scanner itself and should be considered normal administrative activity.
 
 TCP flag reference: S=SYN(connection start), A=ACK, SA=SYN-ACK(handshake reply), F=FIN(close), R=RST(rejection/abort), P=PSH(data), PA=PSH+ACK(normal data transfer). A burst of S-only packets from one source to many destinations or ports is a SYN flood — a denial-of-service attack.
 
@@ -140,7 +142,13 @@ PACKET LOG (${filteredPackets.length} total):
 ${packetLines || "  No packets captured"}
 ${nmapResults && nmapResults.length > 0 ? `
 NMAP PORT SCAN RESULTS (${nmapResults.length} hosts):
-${nmapResults.map((r) => `  ${r.ip}: returncode=${r.returncode} | open ports/services in stdout below\n    stdout: ${(r.stdout || "").slice(0, 800)}${(r.stdout?.length ?? 0) > 800 ? "..." : ""}`).join("\n")}` : ""}
+${nmapResults.map((r) => {
+  const portInfo = r.open_ports && r.open_ports.length > 0 
+    ? r.open_ports.map(p => `${p.port}/${p.service}${p.version ? ` (${p.version})` : ""}`).join(", ")
+    : "No open ports detected";
+  
+  return `  ${r.ip}: Status=${r.host_status || "unknown"} | Return code=${r.returncode ?? "timeout"} | Open ports: ${portInfo}${r.scan_stats?.duration ? ` | Scan time: ${r.scan_stats.duration}` : ""}${r.stderr ? ` | Error: ${r.stderr.slice(0, 200)}` : ""}`;
+}).join("\n")}` : ""}
 
 ---
 
