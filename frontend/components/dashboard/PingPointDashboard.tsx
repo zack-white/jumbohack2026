@@ -9,7 +9,7 @@ import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
-// import { generateLLMResponse } from "@/lib/generate-llm-response";
+import { generateLLMResponse } from "@/lib/generate-llm-response";
 
 const HEX_RADIUS = 140;
 const CENTER_X = 280;
@@ -185,16 +185,16 @@ export function PingPointDashboard() {
   useEffect(() => {
     if (status === "done") {
       // LLM call commented out to avoid API quota usage
-      // setLlmLoading(true);
-      // setLLMResponse("");
-      // let firstChunk = true;
-      // generateLLMResponse(packets, devices, (chunk) => {
-      //   if (firstChunk) {
-      //     setLlmLoading(false);
-      //     firstChunk = false;
-      //   }
-      //   setLLMResponse((prev) => prev + chunk);
-      // }).finally(() => setLlmLoading(false));
+      setLlmLoading(true);
+      setLLMResponse("");
+      let firstChunk = true;
+      generateLLMResponse(packets, devices, (chunk) => {
+        if (firstChunk) {
+          setLlmLoading(false);
+          firstChunk = false;
+        }
+        setLLMResponse((prev) => prev + chunk);
+      }).finally(() => setLlmLoading(false));
     }
   }, [status]);
 
