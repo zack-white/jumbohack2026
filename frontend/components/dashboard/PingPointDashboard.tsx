@@ -78,33 +78,43 @@ export function PingPointDashboard() {
   );
 
   useEffect(() => {
-    const deviceIps = Object.keys(devices);
+    const deviceIps = [...Object.keys(devices)].sort();
     const connectionKeys = new Set<string>();
-    const degree = new Map<string, number>();
 
     for (const pkt of packets) {
       const { src_ip, dst_ip } = pkt;
       if (!src_ip || !dst_ip) continue;
       const key = src_ip < dst_ip ? `${src_ip}|${dst_ip}` : `${dst_ip}|${src_ip}`;
       connectionKeys.add(key);
-      degree.set(src_ip, (degree.get(src_ip) ?? 0) + 1);
-      degree.set(dst_ip, (degree.get(dst_ip) ?? 0) + 1);
     }
 
-    const sortedIps = [...deviceIps].sort((a, b) => {
-      const dA = degree.get(a) ?? 0;
-      const dB = degree.get(b) ?? 0;
-      return dB - dA;
+    setNodes((prev) => {
+      const prevMap = new Map(prev.map((n) => [n.id, n]));
+      const nodes = deviceIps.map((ip, index) => {
+        const existing = prevMap.get(ip);
+        const { x, y } = hexWebPosition(index);
+        if (existing && existing.position.x === x && existing.position.y === y) {
+          return existing;
+        }
+        return makeNode(ip, index);
+      });
+      return nodes;
     });
 
-    const newNodes = sortedIps.map((ip, index) => makeNode(ip, index));
-    const newEdges: Edge[] = Array.from(connectionKeys).map((key) => {
-      const [a, b] = key.split("|");
-      return { id: key, source: a, target: b };
+    setEdges((prev) => {
+      const prevMap = new Map(prev.map((e) => [e.id, e]));
+      const edgeIds = Array.from(connectionKeys);
+      const same =
+        prev.length === edgeIds.length &&
+        prev.every((e) => connectionKeys.has(e.id));
+      if (same) return prev;
+      return edgeIds.map((key) => {
+        const existing = prevMap.get(key);
+        if (existing) return existing;
+        const [a, b] = key.split("|");
+        return { id: key, source: a, target: b };
+      });
     });
-
-    setNodes(newNodes);
-    setEdges(newEdges);
     setMetrics({
       deviceCount: deviceIps.length,
       connectionCount: connectionKeys.size,
