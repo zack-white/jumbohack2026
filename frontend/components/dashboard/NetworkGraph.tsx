@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import {
   ReactFlow,
-  Background,
   Controls,
   MiniMap,
   Handle,
@@ -13,7 +12,6 @@ import {
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
-  BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { cn } from "@/lib/utils";
@@ -77,8 +75,8 @@ function LatticeBackground() {
           const dy = nodes[i].y - nodes[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < CONNECT_DIST) {
-            const alpha = (1 - dist / CONNECT_DIST) * 0.4;
-            ctx.strokeStyle = `rgba(75, 75, 85, ${alpha})`;
+            const alpha = (1 - dist / CONNECT_DIST) * 0.15;
+            ctx.strokeStyle = `rgba(55, 75, 85, ${alpha})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
@@ -91,7 +89,7 @@ function LatticeBackground() {
       for (const n of nodes) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, 1.8, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(85, 85, 95, 0.75)";
+        ctx.fillStyle = "rgba(10, 10, 11, 0.4)";
         ctx.fill();
       }
 
@@ -197,7 +195,6 @@ export default function NetworkGraph({
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "animatedBeam", style: { stroke: "#94a3b8" } }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#525252" className="opacity-50" />
         <Controls className="!bg-card !border-border" />
         <MiniMap
           nodeColor={(n) => {
