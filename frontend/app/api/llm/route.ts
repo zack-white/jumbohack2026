@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stream = await client.messages.create({
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5",
         max_tokens: 2400,
         messages: [{ role: "user", content: prompt }],
         stream: true,
