@@ -149,9 +149,9 @@ export function PingPointDashboard() {
   useEffect(() => {
     if (status === "done") {
       setLlmLoading(true);
-      generateLLMResponse(packets, devices)
-        .then((res) => setLLMResponse(res))
-        .finally(() => setLlmLoading(false));
+      // generateLLMResponse(packets, devices)
+      //   .then((res) => setLLMResponse(res))
+      //   .finally(() => setLlmLoading(false));
     }
   }, [status]);
 
