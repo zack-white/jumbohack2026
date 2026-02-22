@@ -573,6 +573,7 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
               data={timeSeriesData}
               isStreaming={status === "scanning"}
               summary={summary}
+              className="flex-1"
             />
           </div>
         </div>
