@@ -1,10 +1,4 @@
 import { type Packet, type Device, type NmapResult } from "@/hooks/useScan";
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({
-    apiKey: process.env.NEXT_PUBLIC_CLAUDE_API_KEY,
-    dangerouslyAllowBrowser: true,
-});
 
 function buildPrompt(
   packets: Packet[],
@@ -68,22 +62,29 @@ export async function generateLLMResponse(
 ): Promise<void> {
     console.log("[LLM] generateLLMResponse called", { packets: packets.length, devices: Object.keys(devices).length, nmapResults: nmapResults?.length ?? 0 });
     const prompt = buildPrompt(packets, devices, nmapResults);
-    console.log("[LLM] Prompt built, sending to Claude...");
+    console.log("[LLM] Prompt built, sending to /api/llm...");
 
-    const stream = await client.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 5000,
-        messages: [{ role: "user", content: prompt }],
-        stream: true,
+    const response = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
     });
 
-    let chunkCount = 0;
-    for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            chunkCount++;
-            if (chunkCount === 1) console.log("[LLM] First chunk received");
-            onChunk(event.delta.text);
-        }
+    if (!response.ok || !response.body) {
+        throw new Error(`LLM API error: ${response.status}`);
     }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let chunkCount = 0;
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunkCount++;
+        if (chunkCount === 1) console.log("[LLM] First chunk received");
+        onChunk(decoder.decode(value, { stream: true }));
+    }
+
     console.log("[LLM] Stream complete", { totalChunks: chunkCount });
 }

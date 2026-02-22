@@ -1,38 +1,32 @@
 import { NextRequest } from "next/server";
-import { generateLLMResponse } from "@/lib/generate-llm-response";
-import { type Packet, type Device, type NmapResult } from "@/hooks/useScan";
+import Anthropic from "@anthropic-ai/sdk";
 
-export const dynamic = "force-dynamic";
+const client = new Anthropic({
+    apiKey: process.env.CLAUDE_API_KEY,
+});
 
-export async function POST(request: NextRequest) {
-    try {
-        const { packets, devices, nmapResults } = await request.json() as {
-            packets: Packet[];
-            devices: Record<string, Device>;
-            nmapResults?: NmapResult[];
-        };
+export async function POST(req: NextRequest) {
+    const { prompt } = await req.json();
 
-        const encoder = new TextEncoder();
-        const { readable, writable } = new TransformStream();
-        const writer = writable.getWriter();
+    const stream = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2400,
+        messages: [{ role: "user", content: prompt }],
+        stream: true,
+    });
 
-        generateLLMResponse(packets, devices, (chunk) => {
-            writer.write(encoder.encode(chunk));
-        }, nmapResults)
-            .then(() => writer.close())
-            .catch((err) => {
-                console.error("[LLM Route] Generation error:", err);
-                writer.abort(err);
-            });
+    const readable = new ReadableStream({
+        async start(controller) {
+            for await (const event of stream) {
+                if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+                    controller.enqueue(new TextEncoder().encode(event.delta.text));
+                }
+            }
+            controller.close();
+        },
+    });
 
-        return new Response(readable, {
-            headers: { "Content-Type": "text/plain; charset=utf-8" },
-        });
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return new Response(JSON.stringify({ error: "LLM request failed", details: message }), {
-            status: 502,
-            headers: { "Content-Type": "application/json" },
-        });
-    }
+    return new Response(readable, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
 }
