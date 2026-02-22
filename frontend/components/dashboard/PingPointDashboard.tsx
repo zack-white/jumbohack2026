@@ -11,7 +11,8 @@ import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
-import { generateLLMResponse } from "@/lib/generate-llm-response";
+import { generateLLMResponse } from "@/lib/network-llm-response";
+import { generateIPLLMResponse } from "@/lib/ip-based-llm-response";
 import { Card, CardContent } from "../ui/card";
 
 const HEX_RADIUS = 220;
@@ -75,11 +76,13 @@ interface PingPointDashboardProps {
 }
 
 // Device popup component moved outside of render function
-const DevicePopup = ({ 
-  selectedDevice, 
-  selectedNmapResults, 
-  status, 
-  onClose 
+const DevicePopup = ({
+  selectedDevice,
+  selectedNmapResults,
+  status,
+  ipLLMResponse,
+  ipLLMLoading,
+  onClose
 }: {
   selectedDevice: SelectedDevice;
   selectedNmapResults: Array<{
@@ -102,6 +105,8 @@ const DevicePopup = ({
     error?: string;
   }>;
   status: string;
+  ipLLMResponse: string;
+  ipLLMLoading: boolean;
   onClose: () => void;
 }) => {
   return (
@@ -155,10 +160,26 @@ const DevicePopup = ({
             </div>
           </div>
 
+          {/* AI Device Summary */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold mb-3">AI Device Summary</h4>
+            {ipLLMLoading ? (
+              <p className="text-sm text-muted-foreground">Analyzing device...</p>
+            ) : ipLLMResponse === "__no_scan__" ? (
+              <p className="text-sm text-muted-foreground">Scan the network to get a summary of this device.</p>
+            ) : ipLLMResponse === "__scanning__" ? (
+              <p className="text-sm text-muted-foreground">Scan in progress — check back once it completes.</p>
+            ) : ipLLMResponse ? (
+              <p className="whitespace-pre-wrap text-sm">{ipLLMResponse}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Waiting for network analysis to complete...</p>
+            )}
+          </div>
+
           {/* Nmap Results */}
           <div className="border-t border-border pt-4">
             <h4 className="text-sm font-semibold mb-3">Nmap Scan Results</h4>
-            
+
             {selectedNmapResults.length > 0 ? (
               <div className="space-y-4">
                 {selectedNmapResults.map((result, index) => (
@@ -280,6 +301,8 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const [llmLoading, setLlmLoading] = useState(false);
   const llmTriggeredRef = useRef(false);
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
+  const [ipLLMResponse, setIPLLMResponse] = useState<string>("");
+  const [ipLLMLoading, setIPLLMLoading] = useState(false);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
   console.log('[DASHBOARD] Current status:', status, 'start function:', typeof start);
@@ -330,10 +353,56 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const selectedNmapResults = useMemo(() => {
     if (!selectedIp) return [];
     return nmapScanResults
-      .flatMap(scanResult => 
+      .flatMap(scanResult =>
         scanResult.results.filter(result => result.ip === selectedIp)
       );
   }, [selectedIp, nmapScanResults]);
+
+  // Trigger IP-specific LLM analysis when a device node is selected
+  useEffect(() => {
+    if (!selectedIp) {
+      setIPLLMResponse("");
+      return;
+    }
+
+    // No scan run yet
+    if (packets.length === 0) {
+      setIPLLMResponse("__no_scan__");
+      return;
+    }
+
+    // Scan still in progress
+    if (status === "scanning") {
+      setIPLLMResponse("__scanning__");
+      return;
+    }
+
+    const device = devices[selectedIp];
+    if (!device) return;
+
+    // Network analysis not ready yet — wait for it
+    if (!llmResponse) return;
+
+    setIPLLMResponse("");
+    setIPLLMLoading(true);
+    let firstChunk = true;
+    generateIPLLMResponse(
+      selectedIp,
+      device,
+      llmResponse,
+      (chunk) => {
+        if (firstChunk) { setIPLLMLoading(false); firstChunk = false; }
+        setIPLLMResponse((prev) => prev + chunk);
+      },
+      selectedNmapResults
+    )
+      .catch((err) => {
+        console.error("[LLM] IP analysis failed", err);
+        setIPLLMResponse("Unable to generate device analysis.");
+      })
+      .finally(() => setIPLLMLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIp, llmResponse, status]);
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
@@ -491,6 +560,8 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
                   selectedDevice={selectedDevice}
                   selectedNmapResults={selectedNmapResults}
                   status={status}
+                  ipLLMResponse={ipLLMResponse}
+                  ipLLMLoading={ipLLMLoading}
                   onClose={() => setSelectedIp(null)}
                 />
               )}
