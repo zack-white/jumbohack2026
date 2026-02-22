@@ -268,6 +268,16 @@ export default function NetworkGraph({
               <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
             </div>
           </dl>
+          {(selectedData.risk === "slight" || selectedData.risk === "medium" || selectedData.risk === "high") && (
+            <div className={cn(
+              "mx-3 mb-3 rounded px-2 py-1.5 text-xs",
+              selectedData.risk === "high"   && "bg-red-500/15 text-red-400",
+              selectedData.risk === "medium" && "bg-orange-500/15 text-orange-400",
+              selectedData.risk === "slight" && "bg-amber-400/15 text-amber-400",
+            )}>
+              ⚠ Suspicious: possible SYN flood attack detected from this device.
+            </div>
+          )}
         </div>
       )}
     </div>
