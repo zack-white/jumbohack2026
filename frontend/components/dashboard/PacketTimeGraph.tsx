@@ -21,7 +21,7 @@ interface PacketTimeGraphProps {
 }
 
 const CHART_W = 900;
-const CHART_H = 110;
+const CHART_H = 300;
 const PAD = { top: 8, right: 16, bottom: 28, left: 48 };
 const INNER_W = CHART_W - PAD.left - PAD.right;
 const INNER_H = CHART_H - PAD.top - PAD.bottom;
@@ -61,8 +61,8 @@ export default function PacketTimeGraph({
         <CardHeader>
           <CardTitle>Network Traffic</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-16 items-center justify-center">
-          <span className="text-muted-foreground text-sm">
+        <CardContent className="h-full">
+          <span className="text-muted-foreground text-sm flex h-full items-center justify-center bg-background p-2 rounded">
             {isStreaming
               ? "Collecting requests…"
               : "Start a scan to see incoming requests"}
@@ -113,17 +113,16 @@ export default function PacketTimeGraph({
   if (xTicks.length === 0) xTicks = [0];
 
   return (
-    <Card className={cn(className)}>
+    <Card className={cn("flex flex-col", className)}>
       <CardHeader>
         <CardTitle>Network Traffic</CardTitle>
       </CardHeader>
-      <CardContent className="pb-3 pt-0">
-        <div className="flex gap-6">
-          <div className="min-w-0 flex-1">
+      <CardContent className="flex min-h-0 flex-1 flex-col pb-3 pt-0">
+        <div className="flex min-h-0 flex-1 gap-6 bg-background p-2 rounded">
+          <div className="min-h-0 min-w-0 flex-1">
             <svg
               viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-              className="w-full"
-              style={{ height: `${CHART_H}px` }}
+              className="w-full h-full"
               aria-label="Incoming requests over time"
             >
               <g transform={`translate(${PAD.left},${PAD.top})`}>
@@ -209,18 +208,6 @@ export default function PacketTimeGraph({
                     {fmtTime(tick)}
                   </text>
                 ))}
-
-                <text
-                  x={-PAD.left + 4}
-                  y={INNER_H / 2}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="currentColor"
-                  fillOpacity={0.4}
-                  transform={`rotate(-90, ${-PAD.left + 4}, ${INNER_H / 2})`}
-                >
-                  requests
-                </text>
               </g>
             </svg>
           </div>

@@ -5,13 +5,14 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
-import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
+import NetworkGraph, { type NetworkNodeData, type RiskLevel } from "./NetworkGraph";
 import { type SelectedDevice } from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
-import { generateLLMResponse } from "@/lib/generate-llm-response";
+import { generateLLMResponse } from "@/lib/network-llm-response";
+import { generateIPLLMResponse } from "@/lib/ip-based-llm-response";
 import { Card, CardContent } from "../ui/card";
 
 const HEX_RADIUS = 220;
@@ -46,7 +47,8 @@ function makeNode(
   index: number,
   ipToHostname: Map<string, string>,
   device?: { mac: string | null; vendor: string; hostname: string | null },
-  packetCount?: number
+  packetCount?: number,
+  risk: RiskLevel = "none"
 ): Node<NetworkNodeData> {
   const { x, y } = hexWebPosition(index);
   const hostname = device?.hostname ?? ipToHostname.get(ip) ?? null;
@@ -60,7 +62,7 @@ function makeNode(
       label,
       labelFull: rawLabel,
       ip,
-      risk: "none" as const,
+      risk,
       mac: device?.mac ?? null,
       vendor: device?.vendor ?? "",
       hostname,
@@ -74,11 +76,13 @@ interface PingPointDashboardProps {
 }
 
 // Device popup component moved outside of render function
-const DevicePopup = ({ 
-  selectedDevice, 
-  selectedNmapResults, 
-  status, 
-  onClose 
+const DevicePopup = ({
+  selectedDevice,
+  selectedNmapResults,
+  status,
+  ipLLMResponse,
+  ipLLMLoading,
+  onClose
 }: {
   selectedDevice: SelectedDevice;
   selectedNmapResults: Array<{
@@ -101,6 +105,8 @@ const DevicePopup = ({
     error?: string;
   }>;
   status: string;
+  ipLLMResponse: string;
+  ipLLMLoading: boolean;
   onClose: () => void;
 }) => {
   return (
@@ -154,10 +160,26 @@ const DevicePopup = ({
             </div>
           </div>
 
+          {/* AI Device Summary */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold mb-3">AI Device Summary</h4>
+            {ipLLMLoading ? (
+              <p className="text-sm text-muted-foreground">Analyzing device...</p>
+            ) : ipLLMResponse === "__no_scan__" ? (
+              <p className="text-sm text-muted-foreground">Scan the network to get a summary of this device.</p>
+            ) : ipLLMResponse === "__scanning__" ? (
+              <p className="text-sm text-muted-foreground">Scan in progress — check back once it completes.</p>
+            ) : ipLLMResponse ? (
+              <p className="whitespace-pre-wrap text-sm">{ipLLMResponse}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Waiting for network analysis to complete...</p>
+            )}
+          </div>
+
           {/* Nmap Results */}
           <div className="border-t border-border pt-4">
             <h4 className="text-sm font-semibold mb-3">Nmap Scan Results</h4>
-            
+
             {selectedNmapResults.length > 0 ? (
               <div className="space-y-4">
                 {selectedNmapResults.map((result, index) => (
@@ -279,6 +301,8 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const [llmLoading, setLlmLoading] = useState(false);
   const llmTriggeredRef = useRef(false);
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
+  const [ipLLMResponse, setIPLLMResponse] = useState<string>("");
+  const [ipLLMLoading, setIPLLMLoading] = useState(false);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
   console.log('[DASHBOARD] Current status:', status, 'start function:', typeof start);
@@ -375,6 +399,52 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     }
   }, [selectedIp, nmapScanResults]);
 
+  // Trigger IP-specific LLM analysis when a device node is selected
+  useEffect(() => {
+    if (!selectedIp) {
+      setIPLLMResponse("");
+      return;
+    }
+
+    // No scan run yet
+    if (packets.length === 0) {
+      setIPLLMResponse("__no_scan__");
+      return;
+    }
+
+    // Scan still in progress
+    if (status === "scanning") {
+      setIPLLMResponse("__scanning__");
+      return;
+    }
+
+    const device = devices[selectedIp];
+    if (!device) return;
+
+    // Network analysis not ready yet — wait for it
+    if (!llmResponse) return;
+
+    setIPLLMResponse("");
+    setIPLLMLoading(true);
+    let firstChunk = true;
+    generateIPLLMResponse(
+      selectedIp,
+      device,
+      llmResponse,
+      (chunk) => {
+        if (firstChunk) { setIPLLMLoading(false); firstChunk = false; }
+        setIPLLMResponse((prev) => prev + chunk);
+      },
+      selectedNmapResults
+    )
+      .catch((err) => {
+        console.error("[LLM] IP analysis failed", err);
+        setIPLLMResponse("Unable to generate device analysis.");
+      })
+      .finally(() => setIPLLMLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIp, llmResponse, status]);
+
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
     const toMs = (t: string | number) =>
@@ -407,6 +477,19 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     const connectionKeys = new Set<string>();
     const packetCounts = new Map<string, number>();
 
+    // SYN flood detection: count pure SYN packets per src_ip in a rolling 30s window.
+    // samplesus.py sends TCP flags="S" with a fixed real src_ip, so we detect by src_ip.
+    // Timestamps arrive as ISO strings from the backend, so convert with toMs().
+    const SYN_WINDOW_MS = 30_000;
+    const toMs = (t: string | number) =>
+      typeof t === "number" ? t : new Date(String(t)).getTime();
+    let latestTs = 0;
+    for (const pkt of packets) {
+      const ts = toMs(pkt.timestamp);
+      if (ts > latestTs) latestTs = ts;
+    }
+    const synCounts = new Map<string, number>();
+
     for (const pkt of packets) {
       const { src_ip, dst_ip } = pkt;
       if (!src_ip || !dst_ip) continue;
@@ -414,6 +497,15 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
       connectionKeys.add(key);
       packetCounts.set(src_ip, (packetCounts.get(src_ip) ?? 0) + 1);
       packetCounts.set(dst_ip, (packetCounts.get(dst_ip) ?? 0) + 1);
+
+      if (
+        pkt.flags &&
+        pkt.flags.includes("S") &&
+        !pkt.flags.includes("A") &&
+        latestTs - toMs(pkt.timestamp) <= SYN_WINDOW_MS
+      ) {
+        synCounts.set(src_ip, (synCounts.get(src_ip) ?? 0) + 1);
+      }
     }
 
     setNodes((prev) => {
@@ -425,16 +517,24 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
         const rawLabel = hostname ?? ip;
         const label = truncateLabel(rawLabel);
         const count = packetCounts.get(ip) ?? 0;
+        const synCount = synCounts.get(ip) ?? 0;
+        const PI_IP = "10.0.1.6";
+        const risk: RiskLevel =
+          ip === PI_IP    ? "none" :
+          synCount >= 20  ? "high" :
+          synCount >= 10  ? "medium" :
+          synCount >= 3   ? "slight" : "none";
         if (
           existing &&
           existing.position.x === x &&
           existing.position.y === y &&
           existing.data.label === label &&
-          existing.data.packetCount === count
+          existing.data.packetCount === count &&
+          existing.data.risk === risk
         ) {
           return existing;
         }
-        return makeNode(ip, index, ipToHostname, devices[ip], count);
+        return makeNode(ip, index, ipToHostname, devices[ip], count, risk);
       });
       return nodes;
     });
@@ -460,46 +560,22 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     });
   }, [packets, devices, ipToHostname]);
 
-  // Reset LLM trigger when starting a new scan
   useEffect(() => {
-    if (status === "scanning") {
-      console.log("[SCAN] New scan started, resetting LLM trigger");
-      llmTriggeredRef.current = false;
-      setLLMResponse("");
-      setLlmLoading(false);
-    }
-  }, [status]);
-
-  // Trigger LLM when scan completes. Status goes "done" -> "nmap-scanning" in same batch
-  // when there are devices, so we rarely see "done". Trigger on "nmap-scanning" (packet scan
-  // done, nmap starting), "complete" (includes nmap), or "done" (0 devices).
-  useEffect(() => {
-    console.log("[LLM] Effect run", { status, llmTriggered: llmTriggeredRef.current, deviceCount: Object.keys(devices).length, packetCount: packets.length });
     const shouldTrigger = status === "done" || status === "nmap-scanning" || status === "complete";
-    if (!shouldTrigger || llmTriggeredRef.current) {
-      console.log("[LLM] Skipping (wrong status or already triggered)");
-      return;
-    }
-    console.log("[LLM] Triggering Claude request", { packets: packets.length, devices: Object.keys(devices).length, nmapScanResults: nmapScanResults.length });
+    if (!shouldTrigger || llmTriggeredRef.current) return;
     llmTriggeredRef.current = true;
     setLlmLoading(true);
     setLLMResponse("");
     let firstChunk = true;
     // Flatten nmap results from the actual structure: { hosts: [...] } or { results: [...] }
     const flatNmapResults = nmapScanResults.flatMap((r) => r.hosts || r.results || []);
-    console.log(packets);
     generateLLMResponse(packets, devices, (chunk) => {
-      if (firstChunk) {
-        setLlmLoading(false);
-        firstChunk = false;
-      }
+      if (firstChunk) { setLlmLoading(false); firstChunk = false; }
       setLLMResponse((prev) => prev + chunk);
     }, flatNmapResults)
-      .then(() => console.log("[LLM] Claude stream finished"))
       .catch((err) => {
-        console.error("[LLM] Claude request failed", err);
         toast.error("Security analysis failed", {
-          description: err instanceof Error ? err.message : "Unable to generate AI analysis. Check your API key and connection.",
+          description: err instanceof Error ? err.message : "Unable to generate AI analysis.",
         });
       })
       .finally(() => setLlmLoading(false));
@@ -526,17 +602,22 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
                   selectedDevice={selectedDevice}
                   selectedNmapResults={selectedNmapResults}
                   status={status}
+                  ipLLMResponse={ipLLMResponse}
+                  ipLLMLoading={ipLLMLoading}
                   onClose={() => setSelectedIp(null)}
                 />
               )}
             </AnimatePresence>
           </div>
-          <MetricsBar metrics={metrics} />
-          <PacketTimeGraph
-            data={timeSeriesData}
-            isStreaming={status === "scanning"}
-            summary={summary}
-          />
+          <div className="flex flex-row gap-6">
+            <MetricsBar metrics={metrics} />
+            <PacketTimeGraph
+              data={timeSeriesData}
+              isStreaming={status === "scanning"}
+              summary={summary}
+              className="flex-1"
+            />
+          </div>
         </div>
         
         <AnimatePresence>

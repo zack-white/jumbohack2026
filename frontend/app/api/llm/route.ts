@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     console.log("[LLM Route] body keys:", Object.keys(body), "prompt type:", typeof prompt, "prompt length:", prompt?.length);
 
     if (!prompt) {
-        return new Response("Missing prompt", { status: 400 });
+        return new NextResponse("Missing prompt", { status: 400 });
     }
 
     const stream = await client.messages.create({
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         },
     });
 
-    return new Response(readable, {
+    return new NextResponse(readable, {
         headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
 }

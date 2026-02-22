@@ -39,10 +39,22 @@ function LatticeBackground() {
 
     function resize() {
       if (!canvas) return;
+      const prevWidth = width;
+      const prevHeight = height;
       width = canvas.offsetWidth;
       height = canvas.offsetHeight;
       canvas.width = width;
       canvas.height = height;
+      // Proportionally rescale existing node positions so they spread across
+      // the new dimensions instead of piling up on the edge when the panel shrinks.
+      if (prevWidth > 0 && prevHeight > 0 && nodes.length > 0) {
+        const scaleX = width / prevWidth;
+        const scaleY = height / prevHeight;
+        for (const n of nodes) {
+          n.x = Math.min(n.x * scaleX, width);
+          n.y = Math.min(n.y * scaleY, height);
+        }
+      }
     }
 
     function init() {
@@ -74,7 +86,7 @@ function LatticeBackground() {
           const dy = nodes[i].y - nodes[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < CONNECT_DIST) {
-            const alpha = (1 - dist / CONNECT_DIST) * 0.15;
+            const alpha = (1 - dist / CONNECT_DIST) * 0.7;
             ctx.strokeStyle = `rgba(55, 75, 85, ${alpha})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -88,7 +100,7 @@ function LatticeBackground() {
       for (const n of nodes) {
         ctx.beginPath();
         ctx.arc(n.x, n.y, 1.8, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(10, 10, 11, 0.4)";
+        ctx.fillStyle = "rgba(58, 58, 68, 0.4)";
         ctx.fill();
       }
 
@@ -136,14 +148,35 @@ export interface NetworkGraphProps {
 }
 
 const riskColors: Record<RiskLevel, string> = {
-  none: "stroke-blue-400",
-  slight: "stroke-amber-400",
-  medium: "stroke-orange-500",
-  high: "stroke-red-500",
+  none: "border-blue-400",
+  slight: "border-amber-400",
+  medium: "border-orange-500",
+  high: "border-red-500",
 };
+
+const PI_IP = "10.0.1.6";
+
+function RaspberryIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      {/* drupelets */}
+      <circle cx="12" cy="16" r="2.2" />
+      <circle cx="8.5"  cy="13.5" r="2" />
+      <circle cx="15.5" cy="13.5" r="2" />
+      <circle cx="10.5" cy="10.5" r="1.9" />
+      <circle cx="13.5" cy="10.5" r="1.9" />
+      <circle cx="12"   cy="8"   r="1.8" />
+      {/* leaves */}
+      <path d="M10 6.8 C9 4.5 7 4 7 5.5 C8.5 5 9.5 5.8 10 6.8Z" />
+      <path d="M12 6.2 C12 4 11.2 2.5 12 2.5 C12.8 2.5 12 4 12 6.2Z" />
+      <path d="M14 6.8 C15 4.5 17 4 17 5.5 C15.5 5 14.5 5.8 14 6.8Z" />
+    </svg>
+  );
+}
 
 function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: boolean }) {
   const risk = data.risk ?? "none";
+  const isPi = data.ip === PI_IP;
 
   return (
     <div
@@ -155,7 +188,11 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
-      <Monitor className="h-8 w-8" />
+      {isPi ? (
+        <RaspberryIcon className="h-8 w-8" />
+      ) : (
+        <Monitor className="h-8 w-8" />
+      )}
       <span
         className="max-w-[200px] truncate text-sm text-muted-foreground"
         title={data.labelFull ?? data.label}
@@ -243,6 +280,16 @@ export default function NetworkGraph({
               <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
             </div>
           </dl>
+          {(selectedData.risk === "slight" || selectedData.risk === "medium" || selectedData.risk === "high") && (
+            <div className={cn(
+              "mx-3 mb-3 rounded px-2 py-1.5 text-xs",
+              selectedData.risk === "high"   && "bg-red-500/15 text-red-400",
+              selectedData.risk === "medium" && "bg-orange-500/15 text-orange-400",
+              selectedData.risk === "slight" && "bg-amber-400/15 text-amber-400",
+            )}>
+              ⚠ Suspicious: possible SYN flood attack detected from this device.
+            </div>
+          )}
         </div>
       )}
     </div>
