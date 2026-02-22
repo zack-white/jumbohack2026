@@ -567,12 +567,14 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
               )}
             </AnimatePresence>
           </div>
-          <MetricsBar metrics={metrics} />
-          <PacketTimeGraph
-            data={timeSeriesData}
-            isStreaming={status === "scanning"}
-            summary={summary}
-          />
+          <div className="flex flex-row gap-6">
+            <MetricsBar metrics={metrics} />
+            <PacketTimeGraph
+              data={timeSeriesData}
+              isStreaming={status === "scanning"}
+              summary={summary}
+            />
+          </div>
         </div>
         
         <AnimatePresence>
