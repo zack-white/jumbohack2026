@@ -189,45 +189,6 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     });
   }, [packets, devices, ipToHostname]);
 
-  // Notify parent of state changes
-  useEffect(() => {
-    if (onScanStateChange) {
-      onScanStateChange(status, start);
-    }
-  }, [status, onScanStateChange]); // Removed 'start' from dependencies to prevent infinite loop
-
-  // Reset LLM trigger when starting a new scan
-  useEffect(() => {
-    if (status === "done") {
-      setLlmLoading(true);
-      setLLMResponse("");
-      let firstChunk = true;
-      (async () => {
-        try {
-          const res = await fetch("/api/llm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ packets, devices }),
-          });
-          if (!res.ok || !res.body) throw new Error(res.statusText);
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (firstChunk) {
-              setLlmLoading(false);
-              firstChunk = false;
-            }
-            setLLMResponse((prev) => prev + decoder.decode(value, { stream: true }));
-          }
-        } finally {
-          setLlmLoading(false);
-        }
-      })();
-    }
-  }, [status]);
-
   // Trigger LLM when scan completes. Status goes "done" -> "nmap-scanning" in same batch
   // when there are devices, so we rarely see "done". Trigger on "nmap-scanning" (packet scan
   // done, nmap starting), "complete" (includes nmap), or "done" (0 devices).
@@ -243,13 +204,14 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     setLlmLoading(true);
     setLLMResponse("");
     let firstChunk = true;
+    const flatNmapResults = nmapScanResults.flatMap((r) => r.results);
     generateLLMResponse(packets, devices, (chunk) => {
       if (firstChunk) {
         setLlmLoading(false);
         firstChunk = false;
       }
       setLLMResponse((prev) => prev + chunk);
-    }, nmapScanResults)
+    }, flatNmapResults)
       .then(() => console.log("[LLM] Claude stream finished"))
       .catch((err) => console.error("[LLM] Claude request failed", err))
       .finally(() => setLlmLoading(false));

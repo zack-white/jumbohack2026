@@ -6,7 +6,13 @@ const client = new Anthropic({
 });
 
 export async function POST(req: NextRequest) {
-    const { prompt } = await req.json();
+    const body = await req.json();
+    const { prompt } = body;
+    console.log("[LLM Route] body keys:", Object.keys(body), "prompt type:", typeof prompt, "prompt length:", prompt?.length);
+
+    if (!prompt) {
+        return new Response("Missing prompt", { status: 400 });
+    }
 
     const stream = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
