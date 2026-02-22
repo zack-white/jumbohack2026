@@ -45,6 +45,25 @@ export default function DashboardPage() {
         @keyframes l27 {
           100% {transform: rotate(1turn)}
         }
+        .button-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(35, 236, 255, 0.3);
+          border-top-color: #23ECFF;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 0 2px rgba(35, 236, 255, 0.2), 0 0 10px rgba(35, 236, 255, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 0 2px rgba(35, 236, 255, 0.4), 0 0 20px rgba(35, 236, 255, 0.5);
+          }
+        }
         .rescan-button {
           background-color: black;
           border: 1px solid #23ECFF;
@@ -59,6 +78,10 @@ export default function DashboardPage() {
         .rescan-button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+        .rescan-button.scanning {
+          animation: pulse-glow 2s ease-in-out infinite;
+          background-color: rgba(35, 236, 255, 0.05);
         }
       `}</style>
       <header className="flex shrink-0 items-center justify-between border-b px-6 py-4">
@@ -84,9 +107,12 @@ export default function DashboardPage() {
               }
             }}
             disabled={status === "scanning"}
-            className="rescan-button rounded-md px-4 py-2 text-sm font-medium"
+            className={`rescan-button rounded-md px-4 py-2 text-sm font-medium ${status === "scanning" ? "scanning" : ""}`}
           >
-            {status === "scanning" ? "Scanning..." : lastScanned === null ? "Scan" : "Re-scan"}
+            <span className="flex items-center gap-2">
+              {status === "scanning" && <div className="button-spinner"></div>}
+              {status === "scanning" ? "Scanning..." : lastScanned === null ? "Scan" : "Re-scan"}
+            </span>
           </button>
         </div>
       </header>
