@@ -6,11 +6,13 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime
+from typing import Set, List, Dict, AsyncGenerator
+import asyncio
 
 DEFAULT_NMAP_ARGS = [
     "-sV",      # service/version detection
     "-T3",      # reasonable timing
-    "--top-ports", "200",  # don’t nuke the network; adjust if you want
+    "--top-ports", "200",  # don't nuke the network; adjust if you want
 ]
 
 def is_reasonable_target(ip: str) -> bool:
@@ -82,6 +84,91 @@ def run_nmap(ip: str, nmap_args: list[str], timeout: int) -> dict:
             "error": "timeout",
         }
 
+async def stream_nmap_scan(ips: List[str], timeout: int = 60, nmap_args: List[str] = None) -> AsyncGenerator[Dict, None]:
+    """
+    Stream nmap scan results for a list of IPs.
+    Yields JSON messages with type: started, progress, result, completed, error
+    """
+    if nmap_args is None:
+        nmap_args = DEFAULT_NMAP_ARGS.copy()
+    
+    # Check if nmap is available
+    if shutil.which("nmap") is None:
+        yield {
+            "type": "error",
+            "message": "nmap not found. Install it with: sudo apt-get update && sudo apt-get install -y nmap"
+        }
+        return
+    
+    # Filter and validate IPs
+    valid_ips = [ip for ip in ips if is_reasonable_target(ip)]
+    scanned_ips: Set[str] = set()
+    
+    # Remove duplicates while preserving order
+    unique_ips = []
+    for ip in valid_ips:
+        if ip not in scanned_ips:
+            unique_ips.append(ip)
+            scanned_ips.add(ip)
+    
+    if not unique_ips:
+        yield {
+            "type": "error", 
+            "message": "No valid IPs to scan"
+        }
+        return
+    
+    # Send start message
+    yield {
+        "type": "started",
+        "total_ips": len(unique_ips),
+        "nmap_args": nmap_args,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Scan each IP
+    for i, ip in enumerate(unique_ips):
+        try:
+            # Run nmap scan in executor to avoid blocking
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, run_nmap, ip, nmap_args, timeout
+            )
+            
+            yield {
+                "type": "result",
+                "ip": ip,
+                "progress": i + 1,
+                "total": len(unique_ips),
+                "result": result,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            yield {
+                "type": "result",
+                "ip": ip,
+                "progress": i + 1,
+                "total": len(unique_ips),
+                "result": {
+                    "ip": ip,
+                    "returncode": None,
+                    "stdout": "",
+                    "stderr": f"Error: {str(e)}",
+                    "error": "exception"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Small delay to prevent overwhelming the system
+        await asyncio.sleep(0.1)
+    
+    # Send completion message
+    yield {
+        "type": "completed",
+        "total_scanned": len(unique_ips),
+        "timestamp": datetime.now().isoformat()
+    }
+
 def main():
     parser = argparse.ArgumentParser(description="Run nmap on IPs discovered by scanner.py JSON output.")
     parser.add_argument("input", help="Path to scan_results.json (or a devices dict JSON).")
@@ -89,7 +176,7 @@ def main():
     parser.add_argument("--timeout", type=int, default=60, help="Timeout per-host (seconds).")
     parser.add_argument("--args", default=None,
                         help="Override nmap args as a single quoted string, e.g. '--args \"-sV -T3 --top-ports 200\"'")
-    parser.add_argument("--dry-run", action="store_true", help="Print targets/commands but don’t run nmap.")
+    parser.add_argument("--dry-run", action="store_true", help="Print targets/commands but don't run nmap.")
     args = parser.parse_args()
 
     if shutil.which("nmap") is None:

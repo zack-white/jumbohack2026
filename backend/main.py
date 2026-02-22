@@ -14,7 +14,7 @@ def ping(timeout: float = 3.0):
     try:
         # ping.py prints to stdout by default; we want a Python dict back.
         # So: call its internal helpers if you have them, otherwise expose a function.
-        return get_avahi_devices(timeout=timeout)
+        return ping.get_avahi_devices(timeout=timeout)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -28,8 +28,19 @@ async def scan(duration: int = 60, batch_interval: float = 2.0):
 
 
 @app.get("/nmap")
-def nmap():
-    return
+async def nmap(ips: list[str], timeout: int = 60, args: str = None):
+    """
+    Stream nmap scan results for provided IPs.
+    Body: list of IP addresses
+    Query params: timeout (seconds), args (nmap arguments as string)
+    """
+    nmap_args = args.split() if args else DEFAULT_NMAP_ARGS
+    
+    async def event_generator():
+        async for message in stream_nmap_scan(ips, timeout, nmap_args):
+            yield {"data": json.dumps(message)}
+    
+    return EventSourceResponse(event_generator())
 
 
 @app.get("/llm")
