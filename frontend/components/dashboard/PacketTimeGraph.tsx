@@ -58,15 +58,15 @@ export default function PacketTimeGraph({
   if (!hasData) {
     return (
       <Card className={cn(className)}>
-        <CardHeader>
-          <CardTitle>Network Traffic</CardTitle>
-        </CardHeader>
         <CardContent className="h-full">
-          <span className="text-muted-foreground text-sm flex h-full items-center justify-center bg-background p-2 rounded">
-            {isStreaming
-              ? "Collecting requests…"
-              : "Start a scan to see incoming requests"}
-          </span>
+          <div className="flex flex-col gap-2 h-full">
+            <p>Network Traffic</p>
+            <div className="text-muted-foreground text-sm flex h-full items-center justify-center bg-background p-2 rounded">
+              {isStreaming
+                ? "Collecting requests…"
+                : "Start a scan to see incoming requests"}
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -114,111 +114,111 @@ export default function PacketTimeGraph({
 
   return (
     <Card className={cn("flex flex-col", className)}>
-      <CardHeader>
-        <CardTitle>Network Traffic</CardTitle>
-      </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col pt-0">
-        <div className="flex min-h-0 flex-1 gap-6 bg-background p-2 rounded">
-          <div className="min-h-0 min-w-0 flex-1">
-            <svg
-              viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-              className="w-full h-full"
-              aria-label="Incoming requests over time"
-            >
-              <g transform={`translate(${PAD.left},${PAD.top})`}>
-                {yTicks.map((tick) => (
+        <div className="flex flex-col gap-2 h-full">
+          <p>Network Traffic</p>
+          <div className="flex min-h-0 flex-1 gap-6 bg-background p-2 rounded">
+            <div className="min-h-0 min-w-0 flex-1">
+              <svg
+                viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+                className="w-full h-full"
+                aria-label="Incoming requests over time"
+              >
+                <g transform={`translate(${PAD.left},${PAD.top})`}>
+                  {yTicks.map((tick) => (
+                    <line
+                      key={tick}
+                      x1={0}
+                      x2={INNER_W}
+                      y1={yS(tick)}
+                      y2={yS(tick)}
+                      stroke="currentColor"
+                      strokeOpacity={0.1}
+                      strokeWidth={1}
+                    />
+                  ))}
+
+                  <path d={areaPath} fill="rgb(56,189,248)" fillOpacity={0.12} />
+
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke="rgb(56,189,248)"
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+
                   <line
-                    key={tick}
+                    x1={xS(peakAt)}
+                    x2={xS(peakAt)}
+                    y1={0}
+                    y2={INNER_H}
+                    stroke="rgb(56,189,248)"
+                    strokeOpacity={0.3}
+                    strokeWidth={1}
+                    strokeDasharray="4 3"
+                  />
+
+                  <line
                     x1={0}
-                    x2={INNER_W}
-                    y1={yS(tick)}
-                    y2={yS(tick)}
+                    x2={0}
+                    y1={0}
+                    y2={INNER_H}
                     stroke="currentColor"
-                    strokeOpacity={0.1}
+                    strokeOpacity={0.2}
                     strokeWidth={1}
                   />
-                ))}
 
-                <path d={areaPath} fill="rgb(56,189,248)" fillOpacity={0.12} />
+                  {yTicks.map((tick) => (
+                    <text
+                      key={tick}
+                      x={-8}
+                      y={yS(tick) + 4}
+                      textAnchor="end"
+                      fontSize={11}
+                      fill="currentColor"
+                      fillOpacity={0.5}
+                    >
+                      {fmtCount(tick)}
+                    </text>
+                  ))}
 
-                <path
-                  d={linePath}
-                  fill="none"
-                  stroke="rgb(56,189,248)"
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
+                  <line
+                    x1={0}
+                    x2={INNER_W}
+                    y1={INNER_H}
+                    y2={INNER_H}
+                    stroke="currentColor"
+                    strokeOpacity={0.2}
+                    strokeWidth={1}
+                  />
 
-                <line
-                  x1={xS(peakAt)}
-                  x2={xS(peakAt)}
-                  y1={0}
-                  y2={INNER_H}
-                  stroke="rgb(56,189,248)"
-                  strokeOpacity={0.3}
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                />
+                  {xTicks.map((tick) => (
+                    <text
+                      key={tick}
+                      x={xS(tick)}
+                      y={INNER_H + 18}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fill="currentColor"
+                      fillOpacity={0.5}
+                    >
+                      {fmtTime(tick)}
+                    </text>
+                  ))}
+                </g>
+              </svg>
+            </div>
 
-                <line
-                  x1={0}
-                  x2={0}
-                  y1={0}
-                  y2={INNER_H}
-                  stroke="currentColor"
-                  strokeOpacity={0.2}
-                  strokeWidth={1}
-                />
-
-                {yTicks.map((tick) => (
-                  <text
-                    key={tick}
-                    x={-8}
-                    y={yS(tick) + 4}
-                    textAnchor="end"
-                    fontSize={11}
-                    fill="currentColor"
-                    fillOpacity={0.5}
-                  >
-                    {fmtCount(tick)}
-                  </text>
-                ))}
-
-                <line
-                  x1={0}
-                  x2={INNER_W}
-                  y1={INNER_H}
-                  y2={INNER_H}
-                  stroke="currentColor"
-                  strokeOpacity={0.2}
-                  strokeWidth={1}
-                />
-
-                {xTicks.map((tick) => (
-                  <text
-                    key={tick}
-                    x={xS(tick)}
-                    y={INNER_H + 18}
-                    textAnchor="middle"
-                    fontSize={11}
-                    fill="currentColor"
-                    fillOpacity={0.5}
-                  >
-                    {fmtTime(tick)}
-                  </text>
-                ))}
-              </g>
-            </svg>
-          </div>
-
-          <div className="grid min-w-[220px] grid-cols-2 content-around gap-x-6 gap-y-3 border-l pl-5">
-            {stats.map((s) => (
-              <div key={s.label}>
-                <div className="text-muted-foreground text-[10px] leading-tight">{s.label}</div>
-                <div className="text-xs font-semibold tabular-nums">{s.value}</div>
-              </div>
-            ))}
+            <div className="grid min-w-[220px] grid-cols-2 content-around gap-x-6 gap-y-3 border-l pl-5">
+              {stats.map((s) => (
+                <div key={s.label}>
+                  <div className="text-muted-foreground text-[10px] leading-tight">{s.label}</div>
+                  <div className="text-lg font-semibold tabular-nums">{s.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </CardContent>
