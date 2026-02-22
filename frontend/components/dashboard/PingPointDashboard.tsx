@@ -1,20 +1,17 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
 import NetworkGraph, {
-  defaultNodes,
-  defaultEdges,
   type NetworkNodeData,
 } from "./NetworkGraph";
 import DevicePanel from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
-import { parsePcapStream } from "@/lib/pcapParser";
+import { useScan } from "@/hooks/useScan";
 
 const NODE_SPACING = 180;
 const COLS = 6;
-const EDGE_ANIMATION_DELAY_MS = 40;
 
 function makeNode(ip: string, index: number): Node<NetworkNodeData> {
   const row = Math.floor(index / COLS);
@@ -34,132 +31,58 @@ function makeNode(ip: string, index: number): Node<NetworkNodeData> {
 }
 
 export function PingPointDashboard() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>(
-    defaultNodes
-  );
-  const [edges, setEdges, onEdgesChange] = useEdgesState(defaultEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const { packets, devices, status, start } = useScan();
 
-  const handlePcapUpload = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      e.target.value = "";
+  const seenIps = useRef<Map<string, number>>(new Map());
+  const seenConnections = useRef<Set<string>>(new Set());
 
-      abortRef.current?.abort();
-      abortRef.current = new AbortController();
-      const signal = abortRef.current.signal;
 
-      setIsStreaming(true);
-      setNodes([]);
-      setEdges([]);
-      setMetrics(null);
-
-      const seenIps = new Map<string, number>();
-      let packetCount = 0;
-      const seenConnections = new Set<string>();
-      let nodeIndex = 0;
-
-      const flushConnection = (srcIp: string, dstIp: string) => {
-        const key =
-          srcIp < dstIp ? `${srcIp}|${dstIp}` : `${dstIp}|${srcIp}`;
-        if (seenConnections.has(key)) return;
-        seenConnections.add(key);
-
-        setNodes((prev) => {
-          const next = [...prev];
-          let changed = false;
-          for (const ip of [srcIp, dstIp]) {
-            if (!seenIps.has(ip)) {
-              seenIps.set(ip, nodeIndex);
-              nodeIndex++;
-              next.push(makeNode(ip, seenIps.get(ip)!));
-              changed = true;
-            }
-          }
-          return changed ? next : prev;
-        });
-
-        setEdges((prev) => [
-          ...prev,
-          {
-            id: `e-${key}`,
-            source: srcIp,
-            target: dstIp,
-          } as Edge,
-        ]);
-      };
-
-      const connectionQueue: { srcIp: string; dstIp: string }[] = [];
-      let flushScheduled = false;
-
-      const scheduleFlush = () => {
-        if (flushScheduled || connectionQueue.length === 0) return;
-        flushScheduled = true;
-        const processNext = () => {
-          if (signal.aborted) return;
-          const c = connectionQueue.shift();
-          if (c) {
-            flushConnection(c.srcIp, c.dstIp);
-            setTimeout(processNext, EDGE_ANIMATION_DELAY_MS);
-          } else {
-            flushScheduled = false;
-          }
-        };
-        setTimeout(processNext, EDGE_ANIMATION_DELAY_MS);
-      };
-
-      try {
-        const stream = file.stream();
-        for await (const { srcIp, dstIp } of parsePcapStream(stream)) {
-          if (signal.aborted) break;
-          packetCount++;
-          connectionQueue.push({ srcIp, dstIp });
-          scheduleFlush();
-        }
-        while (connectionQueue.length > 0 && !signal.aborted) {
-          await new Promise((r) => setTimeout(r, EDGE_ANIMATION_DELAY_MS));
-        }
-        if (!signal.aborted) {
-          setMetrics({
-            deviceCount: seenIps.size,
-            connectionCount: seenConnections.size,
-            packetCount,
-          });
-        }
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          console.error(err);
-        }
-      } finally {
-        if (!signal.aborted) setIsStreaming(false);
+  // Populate graph nodes and edges when new packets and devices are detected
+  useEffect(() => {
+    // Add nodes for each device we know about
+    for (const ip of Object.keys(devices)) {
+      if (!seenIps.current.has(ip)) {
+        const index = seenIps.current.size;
+        seenIps.current.set(ip, index);
+        setNodes(prev => [...prev, makeNode(ip, index)]);
       }
-    },
-    [setNodes, setEdges]
-  );
+    }
+
+    // Add edges for each packet connection
+    for (const pkt of packets) {
+      const { src_ip, dst_ip } = pkt;
+      if (!src_ip || !dst_ip) continue;
+      const key = src_ip < dst_ip ? `${src_ip}|${dst_ip}` : `${dst_ip}|${src_ip}`;
+      if (!seenConnections.current.has(key)) {
+        seenConnections.current.add(key);
+        setEdges(prev => [...prev, { id: key, source: src_ip, target: dst_ip }]);
+      }
+    }
+
+    // Update metrics
+    setMetrics({
+      deviceCount: seenIps.current.size,
+      connectionCount: seenConnections.current.size,
+      packetCount: packets.length,
+    });
+  }, [packets, devices]);
+
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
       <div className="flex items-center gap-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pcap,.cap,application/vnd.tcpdump.pcap"
-          onChange={handlePcapUpload}
-          className="hidden"
-          aria-label="Upload PCAP"
-        />
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isStreaming}
+          onClick={() => start()}
+          disabled={status === "scanning"}
           className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
         >
-          {isStreaming ? "Streaming..." : "Upload PCAP"}
+          {status === "scanning" ? "Scanning..." : "Start Scan"}
         </button>
+        <span className="text-sm text-muted-foreground">Status: {status}</span>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">

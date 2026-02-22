@@ -66,29 +66,9 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
 const nodeTypes = { device: DeviceNode };
 const edgeTypes = { animatedBeam: AnimatedBeamEdge };
 
-const defaultNodes: Node<NetworkNodeData>[] = [
-  { id: "1", type: "device", position: { x: 100, y: 80 }, data: { label: "Hannah's Laptop", risk: "slight" } },
-  { id: "2", type: "device", position: { x: 300, y: 40 }, data: { label: "device", risk: "none" } },
-  { id: "3", type: "device", position: { x: 300, y: 140 }, data: { label: "device", risk: "none" } },
-  { id: "4", type: "device", position: { x: 500, y: 80 }, data: { label: "device", risk: "none" } },
-  { id: "5", type: "device", position: { x: 100, y: 220 }, data: { label: "device", risk: "medium" } },
-  { id: "6", type: "device", position: { x: 300, y: 260 }, data: { label: "device", risk: "high" } },
-  { id: "7", type: "device", position: { x: 500, y: 200 }, data: { label: "device", risk: "none" } },
-];
-
-const defaultEdges: Edge[] = [
-  { id: "e1-2", source: "1", target: "2" },
-  { id: "e1-3", source: "1", target: "3" },
-  { id: "e2-4", source: "2", target: "4" },
-  { id: "e1-5", source: "1", target: "5" },
-  { id: "e5-6", source: "5", target: "6" },
-];
-
-export { defaultNodes, defaultEdges };
-
 export default function NetworkGraph({
-  nodes = defaultNodes,
-  edges = defaultEdges,
+  nodes,
+  edges,
   onNodesChange,
   onEdgesChange,
   onConnect,
