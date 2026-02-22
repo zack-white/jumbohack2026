@@ -68,7 +68,11 @@ function makeNode(
   };
 }
 
-export function PingPointDashboard() {
+interface PingPointDashboardProps {
+  onScanStateChange?: (status: string, startFn: () => void) => void;
+}
+
+export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProps = {}) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
@@ -185,6 +189,13 @@ export function PingPointDashboard() {
     });
   }, [packets, devices, ipToHostname]);
 
+  // Notify parent of state changes
+  useEffect(() => {
+    if (onScanStateChange) {
+      onScanStateChange(status, start);
+    }
+  }, [status, onScanStateChange]); // Removed 'start' from dependencies to prevent infinite loop
+
   // Reset LLM trigger when starting a new scan
   useEffect(() => {
     if (status === "done") {
@@ -246,18 +257,6 @@ export function PingPointDashboard() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => start()}
-          disabled={status === "scanning"}
-          className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
-        >
-          {status === "scanning" ? "Scanning..." : "Start Scan"}
-        </button>
-        <span className="text-sm text-muted-foreground">Status: {status}</span>
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden gap-6">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
           <NetworkGraph
