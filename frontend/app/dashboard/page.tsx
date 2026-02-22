@@ -66,16 +66,6 @@ export default function DashboardPage() {
           <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
             <img src="/text.svg" alt="PingPoint" className="h-8 w-auto" />
           </Link>
-          
-          {/* Status with animation */}
-          <div className="flex items-center gap-3">
-            {status === "scanning" && (
-              <div className="loader"></div>
-            )}
-            <span className="text-sm text-muted-foreground">
-              {status === "scanning" ? "Scanning..." : "Ready"}
-            </span>
-          </div>
         </div>
         
         <div className="flex items-center gap-4">
