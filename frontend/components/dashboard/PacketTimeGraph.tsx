@@ -208,18 +208,6 @@ export default function PacketTimeGraph({
                     {fmtTime(tick)}
                   </text>
                 ))}
-
-                <text
-                  x={-PAD.left + 4}
-                  y={INNER_H / 2}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="currentColor"
-                  fillOpacity={0.4}
-                  transform={`rotate(-90, ${-PAD.left + 4}, ${INNER_H / 2})`}
-                >
-                  requests
-                </text>
               </g>
             </svg>
           </div>
