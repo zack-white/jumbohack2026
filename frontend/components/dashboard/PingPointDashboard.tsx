@@ -42,10 +42,13 @@ function hexWebPosition(index: number): { x: number; y: number } {
 function makeNode(
   ip: string,
   index: number,
-  ipToHostname: Map<string, string>
+  ipToHostname: Map<string, string>,
+  device?: { mac: string | null; vendor: string; hostname: string | null },
+  packetCount?: number
 ): Node<NetworkNodeData> {
   const { x, y } = hexWebPosition(index);
-  const rawLabel = ipToHostname.get(ip) ?? ip;
+  const hostname = device?.hostname ?? ipToHostname.get(ip) ?? null;
+  const rawLabel = hostname ?? ip;
   const label = truncateLabel(rawLabel);
   return {
     id: ip,
@@ -56,6 +59,10 @@ function makeNode(
       labelFull: rawLabel,
       ip,
       risk: "none" as const,
+      mac: device?.mac ?? null,
+      vendor: device?.vendor ?? "",
+      hostname,
+      packetCount: packetCount ?? 0,
     },
   };
 }
@@ -121,12 +128,15 @@ export function PingPointDashboard() {
   useEffect(() => {
     const deviceIps = [...Object.keys(devices)].sort();
     const connectionKeys = new Set<string>();
+    const packetCounts = new Map<string, number>();
 
     for (const pkt of packets) {
       const { src_ip, dst_ip } = pkt;
       if (!src_ip || !dst_ip) continue;
       const key = src_ip < dst_ip ? `${src_ip}|${dst_ip}` : `${dst_ip}|${src_ip}`;
       connectionKeys.add(key);
+      packetCounts.set(src_ip, (packetCounts.get(src_ip) ?? 0) + 1);
+      packetCounts.set(dst_ip, (packetCounts.get(dst_ip) ?? 0) + 1);
     }
 
     setNodes((prev) => {
@@ -134,16 +144,20 @@ export function PingPointDashboard() {
       const nodes = deviceIps.map((ip, index) => {
         const existing = prevMap.get(ip);
         const { x, y } = hexWebPosition(index);
-        const label = ipToHostname.get(ip) ?? ip;
+        const hostname = devices[ip]?.hostname ?? ipToHostname.get(ip) ?? null;
+        const rawLabel = hostname ?? ip;
+        const label = truncateLabel(rawLabel);
+        const count = packetCounts.get(ip) ?? 0;
         if (
           existing &&
           existing.position.x === x &&
           existing.position.y === y &&
-          existing.data.label === label
+          existing.data.label === label &&
+          existing.data.packetCount === count
         ) {
           return existing;
         }
-        return makeNode(ip, index, ipToHostname);
+        return makeNode(ip, index, ipToHostname, devices[ip], count);
       });
       return nodes;
     });
@@ -171,6 +185,7 @@ export function PingPointDashboard() {
 
   useEffect(() => {
     if (status === "done") {
+      // LLM call commented out to avoid API quota usage
       setLlmLoading(true);
       setLLMResponse("");
       let firstChunk = true;
