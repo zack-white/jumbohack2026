@@ -73,11 +73,14 @@ export function AnimatedBeamEdge({
           id={gradientId}
           gradientUnits="objectBoundingBox"
           initial={{ x1: 0, x2: 0, y1: 0, y2: 0 }}
-          animate={{
-            ...gradientAnimate,
-            y1: [0, 0],
-            y2: [0, 0],
-          }}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          animate={
+            {
+              ...gradientAnimate,
+              y1: [0, 0],
+              y2: [0, 0],
+            } as any
+          }
           transition={{
             duration,
             delay,
