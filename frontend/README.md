@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+================================================================================
+# PingPoint
+================================================================================
+## Created by: Massimo Bottari, Dan Glorioso, Hannah Jiang, Holden Kittelberger, Shayne Sidman, Zachary White
 
-## Getting Started
+Presented at JumboHack 2026 under the CYBERSECURITY track.
 
-First, run the development server:
+### THE PROJECT
+PingPoint is a real-time network visibility tool designed to help everyday users understand what’s happening on their WiFi without needing technical expertise. Our goal was to capture live packet data, analyze devices and open ports using automated scanning, and use AI to translate complex network activity into clear, user-friendly insights. Over the weekend, we built a working pipeline that parses traffic, runs device scans, visualizes the network in an interactive 2D map, and generates plain-language summaries with an LLM so users can quickly understand potential risks.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### TEAM
+Massimo Bottari: prototyped and frontend styling
+Dan Glorioso: set up the Wi-Fi network
+Hannah Jiang: designed the dashboard + logo
+Holden Kittelberger: backend nmap and raspberry pi setup
+Shayne Sidman: setup scap, LLM, and frontend styling
+Zack White: implemented frontend styling and API routing
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### ACKNOWLEDGEMENTS
+ChatGPT: for fine-tuning and brainstorming
+Claude: API system
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### REFLECTION
+<What motivated your team to choose this project?>
+Our team chose this project because the theme of security felt both timely and impactful. We were motivated by a desire to better understand how networks actually work behind the scenes, especially how data moves and where vulnerabilities can exist. At the same time, we wanted to build something that makes security more accessible, helping non-technical users feel more informed and confident about what’s happening on their own WiFi networks.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+<Potential future work/improvements?>
+For future work, we would like to conduct more extensive testing across edge cases and extreme network scenarios, such as sudden traffic spikes, device spoofing, or multiple simultaneous threats. We also plan to test the system against more advanced network errors and misconfigurations to ensure reliability and accuracy under complex conditions. These tests would help strengthen the robustness of our detection pipeline and improve the quality of the AI-generated insights.
 
-## Learn More
+<What is a challenge you encountered while making this?>
+One major challenge we encountered was navigating network configurations and setting up the WiFi router to properly capture and analyze traffic. Working through permissions, device discovery, and router-level settings required troubleshooting and an understanding of how local networks operate. 
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<What is a fun or interesting experience you had with another hacker?>
+Spending time as a team!
