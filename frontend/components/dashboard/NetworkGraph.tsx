@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Controls,
@@ -178,6 +178,8 @@ export default function NetworkGraph({
   onNodeSelect,
   className,
 }: NetworkGraphProps) {
+  const [selectedData, setSelectedData] = useState<NetworkNodeData | null>(null);
+
   return (
     <div className={cn("relative h-full min-h-[400px] overflow-hidden rounded-lg border border-border bg-black", className)}>
       <LatticeBackground />
@@ -190,8 +192,14 @@ export default function NetworkGraph({
         nodesDraggable
         nodesConnectable={false}
         onConnect={onConnect}
-        onNodeClick={(_, node) => onNodeSelect?.(node)}
-        onPaneClick={() => onNodeSelect?.(null)}
+        onNodeClick={(_, node) => {
+          onNodeSelect?.(node);
+          setSelectedData(node.data);
+        }}
+        onPaneClick={() => {
+          onNodeSelect?.(null);
+          setSelectedData(null);
+        }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
@@ -201,6 +209,42 @@ export default function NetworkGraph({
       >
         <Controls className="!bg-card !border-border" showFitView={false} />
       </ReactFlow>
+
+      {selectedData && (
+        <div className="pointer-events-none absolute right-3 top-3 z-10 w-56 rounded-lg border border-border bg-card shadow-xl">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <Monitor className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span
+              className="truncate text-sm font-semibold"
+              title={String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
+            >
+              {String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
+            </span>
+          </div>
+          <dl className="space-y-1.5 px-3 py-2.5 text-xs">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">IP</dt>
+              <dd className="font-mono">{selectedData.ip}</dd>
+            </div>
+            {selectedData.mac && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">MAC</dt>
+                <dd className="font-mono">{String(selectedData.mac)}</dd>
+              </div>
+            )}
+            {selectedData.vendor && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Vendor</dt>
+                <dd className="text-right">{String(selectedData.vendor)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Packets</dt>
+              <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
     </div>
   );
 }
