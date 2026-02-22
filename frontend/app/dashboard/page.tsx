@@ -8,14 +8,6 @@ export default function DashboardPage() {
         <Link href="/" className="text-sky-400 text-xl font-semibold hover:underline">
           PingPoint
         </Link>
-        <nav className="flex gap-4">
-          <Link href="/dashboard" className="text-muted-foreground text-sm hover:text-foreground">
-            Dashboard
-          </Link>
-          <Link href="/" className="text-muted-foreground text-sm hover:text-foreground">
-            Scanner
-          </Link>
-        </nav>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden p-6">
