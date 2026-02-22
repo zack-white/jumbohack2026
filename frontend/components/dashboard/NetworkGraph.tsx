@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -18,6 +19,100 @@ import "@xyflow/react/dist/style.css";
 import { cn } from "@/lib/utils";
 import { Monitor } from "lucide-react";
 import { AnimatedBeamEdge } from "./AnimatedBeamEdge";
+
+function LatticeBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const NODE_COUNT = 200;
+    const CONNECT_DIST = 100;
+    const SPEED = 0.05;
+
+    let width = 0;
+    let height = 0;
+    let rafId = 0;
+
+    type LatticeNode = { x: number; y: number; vx: number; vy: number };
+    let nodes: LatticeNode[] = [];
+
+    function resize() {
+      if (!canvas) return;
+      width = canvas.offsetWidth;
+      height = canvas.offsetHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    function init() {
+      resize();
+      nodes = Array.from({ length: NODE_COUNT }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * SPEED,
+        vy: (Math.random() - 0.5) * SPEED,
+      }));
+    }
+
+    function tick() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, width, height);
+
+      for (const n of nodes) {
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < 0) { n.x = 0; n.vx *= -1; }
+        if (n.x > width) { n.x = width; n.vx *= -1; }
+        if (n.y < 0) { n.y = 0; n.vy *= -1; }
+        if (n.y > height) { n.y = height; n.vy *= -1; }
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CONNECT_DIST) {
+            const alpha = (1 - dist / CONNECT_DIST) * 0.4;
+            ctx.strokeStyle = `rgba(75, 75, 85, ${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const n of nodes) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 1.8, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(85, 85, 95, 0.75)";
+        ctx.fill();
+      }
+
+      rafId = requestAnimationFrame(tick);
+    }
+
+    init();
+    tick();
+
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(canvas);
+    return () => { cancelAnimationFrame(rafId); ro.disconnect(); };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+    />
+  );
+}
 
 export type RiskLevel = "none" | "slight" | "medium" | "high";
 
@@ -76,7 +171,8 @@ export default function NetworkGraph({
   className,
 }: NetworkGraphProps) {
   return (
-    <div className={cn("h-full min-h-[400px] rounded-lg border border-border bg-black", className)}>
+    <div className={cn("relative h-full min-h-[400px] overflow-hidden rounded-lg border border-border bg-black", className)}>
+      <LatticeBackground />
       <ReactFlow
         colorMode="dark"
         nodes={nodes}
