@@ -5,8 +5,8 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <header className="flex shrink-0 items-center gap-4 border-b px-6 py-4">
-        <Link href="/" className="text-sky-400 text-xl font-semibold hover:underline">
-          PingPoint
+        <Link href="/" className="flex items-center">
+          <img src="/text.svg" alt="PingPoint" className="h-8 w-auto" />
         </Link>
       </header>
 
