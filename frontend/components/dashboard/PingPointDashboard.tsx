@@ -9,14 +9,29 @@ import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 
-const NODE_SPACING = 180;
-const COLS = 6;
+const HEX_RADIUS = 100;
+const CENTER_X = 200;
+const CENTER_Y = 150;
+
+function hexWebPosition(index: number): { x: number; y: number } {
+  if (index === 0) return { x: CENTER_X, y: CENTER_Y };
+  let ring = 1;
+  let cumulative = 1;
+  while (cumulative + 6 * ring <= index) {
+    cumulative += 6 * ring;
+    ring++;
+  }
+  const posInRing = index - cumulative;
+  const angle = (posInRing / (6 * ring)) * 2 * Math.PI - Math.PI / 2;
+  const r = ring * HEX_RADIUS;
+  return {
+    x: CENTER_X + r * Math.cos(angle),
+    y: CENTER_Y + r * Math.sin(angle),
+  };
+}
 
 function makeNode(ip: string, index: number): Node<NetworkNodeData> {
-  const row = Math.floor(index / COLS);
-  const col = index % COLS;
-  const x = 100 + col * NODE_SPACING;
-  const y = 80 + row * NODE_SPACING;
+  const { x, y } = hexWebPosition(index);
   return {
     id: ip,
     type: "device",
