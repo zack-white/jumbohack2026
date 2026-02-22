@@ -95,7 +95,7 @@ export default function DashboardPage() {
             disabled={status === "scanning"}
             className="rescan-button rounded-md px-4 py-2 text-sm font-medium"
           >
-            {status === "scanning" ? "Scanning..." : "Re-scan"}
+            {status === "scanning" ? "Scanning..." : lastScanned === null ? "Scan" : "Re-scan"}
           </button>
         </div>
       </header>
