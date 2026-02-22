@@ -47,8 +47,8 @@ export default function DashboardPage() {
       `}</style>
       <header className="flex shrink-0 items-center justify-between border-b px-6 py-4">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-sky-400 text-xl font-semibold hover:underline">
-            🎯PingPoint
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <img src="/text.svg" alt="PingPoint" className="h-8 w-auto" />
           </Link>
           
           {/* Status with animation */}
