@@ -5,14 +5,17 @@ import json
 from datetime import datetime
 from scanner import run_scan 
 from ping import get_avahi_devices
-from nmap import stream_nmap_scan, DEFAULT_NMAP_ARGS
+from nmap import stream_nmap_scan, DEFAULT_NMAP_ARGS, run_nmap
 from typing import List
 from pydantic import BaseModel
+import asyncio
 
 app = FastAPI()
 
-class TestRequest(BaseModel):
+class NmapRequest(BaseModel):
     ips: List[str]
+    timeout: int = 60
+    args: List[str] = None
 
 @app.get("/ping")
 def ping(timeout: float = 3.0):
@@ -34,60 +37,44 @@ async def scan(duration: int = 60, batch_interval: float = 2.0):
     return EventSourceResponse(event_generator())
 
 
-@app.get("/nmap")
-async def nmap(ips: List[str] = Query(...), timeout: int = 60, args: str = None):
+@app.post("/nmap-scan")
+async def nmap_scan(request: NmapRequest):
     """
-    Stream nmap scan results for provided IPs.
-    Query params: ips (multiple), timeout (seconds), args (nmap arguments as string)
+    Run nmap scans on provided IPs and return results.
+    Expects a JSON body with 'ips', optional 'timeout', and optional 'args'.
     """
-    if not ips:
-        raise HTTPException(status_code=400, detail="At least one IP address is required")
-    
-    nmap_args = args.split() if args else DEFAULT_NMAP_ARGS
-    
-    async def event_generator():
-        async for message in stream_nmap_scan(ips, timeout, nmap_args):
-            yield {"data": json.dumps(message)}
-    
-    return EventSourceResponse(event_generator())
-
-
-@app.post("/test")
-async def test(request: TestRequest):
-    """
-    Test endpoint that receives IP addresses and logs them.
-    Expects a JSON body with an 'ips' field containing a list of IP addresses.
-    """
-    print(f"[TEST] Received request to /test endpoint")
+    print(f"[NMAP-SCAN] Received request to /nmap-scan endpoint")
     
     try:
         ips = request.ips
-        print(f"[TEST] Received {len(ips)} IP addresses: {ips}")
+        timeout = request.timeout or 60
+        nmap_args = request.args or DEFAULT_NMAP_ARGS
         
-        # Return confirmation with the IPs received
+        print(f"[NMAP-SCAN] Starting nmap scan for {len(ips)} IPs: {ips}")
+        
+        # Run nmap scans for all IPs
+        results = []
+        for ip in ips:
+            print(f"[NMAP-SCAN] Scanning {ip}...")
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, run_nmap, ip, nmap_args, timeout
+            )
+            results.append(result)
+            print(f"[NMAP-SCAN] Completed scan for {ip}")
+        
+        print(f"[NMAP-SCAN] All scans completed")
+        
+        # Return results
         return {
             "status": "success",
-            "message": f"Received {len(ips)} IP addresses",
-            "ips_received": ips,
-            "timestamp": datetime.now().isoformat()
+            "message": f"Completed nmap scan for {len(ips)} IP addresses",
+            "results": results,
+            "timestamp": datetime.now().isoformat(),
+            "nmap_args": nmap_args
         }
     except Exception as e:
-        print(f"[TEST] Error processing request: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# Also add a GET version for easier testing
-@app.get("/test")
-def test_get():
-    """
-    GET version of test endpoint for easier debugging
-    """
-    print(f"[TEST] GET request to /test endpoint")
-    return {
-        "status": "success",
-        "message": "Test endpoint is working",
-        "timestamp": datetime.now().isoformat()
-    }
+        print(f"[NMAP-SCAN] Error processing request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/llm")

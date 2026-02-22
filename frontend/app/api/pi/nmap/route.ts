@@ -4,7 +4,7 @@ const PI_BASE_URL = process.env.PI_BASE_URL || 'http://localhost:8000';
 
 export async function GET() {
   try {
-    const response = await fetch(`${PI_BASE_URL}/test`);
+    const response = await fetch(`${PI_BASE_URL}/nmap-scan`);
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const response = await fetch(`${PI_BASE_URL}/test`, {
+    const response = await fetch(`${PI_BASE_URL}/nmap-scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

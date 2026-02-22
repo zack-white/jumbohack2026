@@ -35,11 +35,18 @@ export interface NmapProgress {
     timestamp?: string;
 }
 
-export interface TestResult {
+export interface NmapScanResult {
     status: string;
     message: string;
-    ips_received: string[];
+    results: {
+        ip: string;
+        returncode: number | null;
+        stdout: string;
+        stderr: string;
+        error?: string;
+    }[];
     timestamp: string;
+    nmap_args: string[];
 }
 
 export function useScan() {
@@ -48,51 +55,73 @@ export function useScan() {
     const [status, setStatus] = useState<"idle" | "scanning" | "done" | "nmap-scanning" | "complete" | "error">("idle");
     const [nmapResults, setNmapResults] = useState<NmapResult[]>([]);
     const [nmapProgress, setNmapProgress] = useState<NmapProgress | null>(null);
-    const [testResults, setTestResults] = useState<TestResult[]>([]);
+    const [nmapScanResults, setNmapScanResults] = useState<NmapScanResult[]>([]);
+    
+    // Track which IPs have already been sent for nmap scanning
+    const scannedIpsRef = useRef<Set<string>>(new Set());
 
     // Refs for EventSource connections
     const scanEventSourceRef = useRef<EventSource | null>(null);
     const nmapEventSourceRef = useRef<EventSource | null>(null);
 
-    const sendTestRequest = async (ips: string[]) => {
+    const sendNmapRequest = async (ips: string[]) => {
         try {
-            console.log('[TEST] Attempting to send request to /api/pi/test with IPs:', ips);
+            // Filter out IPs that have already been scanned
+            const newIps = ips.filter(ip => !scannedIpsRef.current.has(ip));
             
-            const response = await fetch('/api/pi/test', {
+            if (newIps.length === 0) {
+                console.log('[NMAP] No new IPs to scan, skipping request');
+                return;
+            }
+            
+            // Mark these IPs as being scanned
+            newIps.forEach(ip => scannedIpsRef.current.add(ip));
+            
+            console.log('[NMAP] Attempting to send request to /api/pi/nmap with NEW IPs:', newIps);
+            console.log('[NMAP] Total IPs already scanned:', scannedIpsRef.current.size);
+
+            const response = await fetch('/api/pi/nmap', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ ips }),
+                body: JSON.stringify({ ips: newIps }),
             });
             
-            console.log('[TEST] Response status:', response.status);
+            console.log('[NMAP] Response status:', response.status);
             
             if (response.ok) {
-                const result: TestResult = await response.json();
-                setTestResults(prev => [...prev, result]);
-                console.log('[TEST] Success! Response:', result);
+                const result: NmapScanResult = await response.json();
+                setNmapScanResults(prev => [...prev, result]);
+                console.log('[NMAP] Success! Response:', result);
             } else {
+                // If the request failed, remove the IPs from the scanned set so they can be retried
+                newIps.forEach(ip => scannedIpsRef.current.delete(ip));
+                
                 const errorText = await response.text();
-                console.error('[TEST] HTTP Error:', response.status, errorText);
+                console.error('[NMAP] HTTP Error:', response.status, errorText);
                 
                 // Try GET request as fallback to test if endpoint exists
-                const getResponse = await fetch('/api/pi/test');
-                console.log('[TEST] GET fallback status:', getResponse.status);
+                const getResponse = await fetch('/api/pi/nmap');
+                console.log('[NMAP] GET fallback status:', getResponse.status);
                 if (getResponse.ok) {
                     const getResult = await getResponse.json();
-                    console.log('[TEST] GET fallback worked:', getResult);
+                    console.log('[NMAP] GET fallback worked:', getResult);
                 }
             }
         } catch (error) {
-            console.error('[TEST] Network/Parse Error:', error);
+            // If there was a network error, remove the IPs from scanned set for retry
+            const newIps = ips.filter(ip => !scannedIpsRef.current.has(ip));
+            newIps.forEach(ip => scannedIpsRef.current.delete(ip));
+            
+            console.error('[NMAP] Network/Parse Error:', error);
             
             // Additional debugging: try to reach the endpoint via GET
             try {
-                const testGet = await fetch('/api/pi/test');
-                console.log('[TEST] GET test status:', testGet.status);
+                const testGet = await fetch('/api/pi/nmap');
+                console.log('[NMAP] GET test status:', testGet.status);
             } catch (getError) {
-                console.error('[TEST] GET test also failed:', getError);
+                console.error('[NMAP] GET test also failed:', getError);
             }
         }
     };
@@ -103,7 +132,11 @@ export function useScan() {
         setDevices({});
         setNmapResults([]);
         setNmapProgress(null);
-        setTestResults([]);
+        setNmapScanResults([]);
+        
+        // Clear the set of scanned IPs for a fresh scan
+        scannedIpsRef.current.clear();
+        console.log('[NMAP] Cleared previously scanned IPs tracker');
         
         const es = new EventSource(`/api/pi/scan?duration=${duration}`);
         scanEventSourceRef.current = es;
@@ -117,10 +150,10 @@ export function useScan() {
                 setPackets((prevPackets) => [...prevPackets, ...(message.packets ?? [])]);
                 setDevices(message.devices);
                 
-                // Continuously send device IPs to test endpoint
+                // Continuously send device IPs to nmap endpoint (only new ones)
                 const currentIps = Object.keys(message.devices);
                 if (currentIps.length > 0) {
-                    sendTestRequest(currentIps);
+                    sendNmapRequest(currentIps);
                 }
                 
             } else if (message.type === "done") {
@@ -186,7 +219,7 @@ export function useScan() {
         status, 
         nmapResults, 
         nmapProgress, 
-        testResults,
+        nmapScanResults,
         start 
     }; 
 }
