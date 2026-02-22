@@ -83,6 +83,26 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
+  console.log('[DASHBOARD] Current status:', status, 'start function:', typeof start);
+
+  // Initial mount - notify parent immediately
+  useEffect(() => {
+    console.log('[DASHBOARD] Component mounted, notifying parent');
+    if (onScanStateChange) {
+      console.log('[DASHBOARD] Calling onScanStateChange with initial status:', status, 'start:', typeof start);
+      onScanStateChange(status, start);
+    }
+  }, []); // Only on mount
+
+  // Status change - notify parent when status changes
+  useEffect(() => {
+    console.log('[DASHBOARD] Status changed, notifying parent');
+    if (onScanStateChange) {
+      console.log('[DASHBOARD] Calling onScanStateChange with status:', status, 'start:', typeof start);
+      onScanStateChange(status, start);
+    }
+  }, [status]); // Only when status changes
+
   const selectedDevice = useMemo<SelectedDevice | null>(() => {
     if (!selectedIp) return null;
     const d = devices[selectedIp];
