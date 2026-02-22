@@ -15,9 +15,10 @@ function buildPrompt(
         `  - ${ip} | MAC: ${d.mac} | Vendor: ${d.vendor} | Hostname: ${d.hostname ?? "unknown"}`
     ).join("\n");
 
-    // Format each packet as a compact, readable line
-    const firstTs = packets[0]?.timestamp ?? 0;
-    const packetLines = packets.map((p) => {
+    // Format each packet as a compact, readable line (exclude Pi's own traffic)
+    const filteredPackets = packets.filter((p) => p.src_ip !== "10.0.1.6");
+    const firstTs = filteredPackets[0]?.timestamp ?? 0;
+    const packetLines = filteredPackets.map((p) => {
         const elapsed = (p.timestamp - firstTs).toFixed(2);
         const src = p.src_ip ? `${p.src_ip}${p.src_port ? `:${p.src_port}` : ""}` : "?";
         const dst = p.dst_ip ? `${p.dst_ip}${p.dst_port ? `:${p.dst_port}` : ""}` : "?";
@@ -46,7 +47,7 @@ Be specific — reference IPs, ports, and vendors by name. Flag anything that wa
 DEVICES ON NETWORK (${Object.keys(devices).length} total):
 ${deviceLines || "  None identified"}
 
-PACKET LOG (${packets.length} total):
+PACKET LOG (${filteredPackets.length} total):
 ${packetLines || "  No packets captured"}
 ${nmapResults && nmapResults.length > 0 ? `
 NMAP PORT SCAN RESULTS (${nmapResults.length} hosts):

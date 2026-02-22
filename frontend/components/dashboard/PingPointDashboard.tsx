@@ -187,9 +187,33 @@ export function PingPointDashboard() {
 
   // Reset LLM trigger when starting a new scan
   useEffect(() => {
-    if (status === "idle" || status === "scanning") {
-      llmTriggeredRef.current = false;
-      if (status === "scanning") console.log("[LLM] Reset trigger for new scan");
+    if (status === "done") {
+      setLlmLoading(true);
+      setLLMResponse("");
+      let firstChunk = true;
+      (async () => {
+        try {
+          const res = await fetch("/api/llm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ packets, devices }),
+          });
+          if (!res.ok || !res.body) throw new Error(res.statusText);
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (firstChunk) {
+              setLlmLoading(false);
+              firstChunk = false;
+            }
+            setLLMResponse((prev) => prev + decoder.decode(value, { stream: true }));
+          }
+        } finally {
+          setLlmLoading(false);
+        }
+      })();
     }
   }, [status]);
 
