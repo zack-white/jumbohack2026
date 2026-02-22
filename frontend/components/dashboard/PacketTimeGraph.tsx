@@ -61,8 +61,8 @@ export default function PacketTimeGraph({
         <CardHeader>
           <CardTitle>Network Traffic</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-full items-center justify-center">
-          <span className="text-muted-foreground text-sm">
+        <CardContent className="h-full">
+          <span className="text-muted-foreground text-sm flex h-full items-center justify-center bg-background p-2 rounded">
             {isStreaming
               ? "Collecting requests…"
               : "Start a scan to see incoming requests"}
@@ -118,7 +118,7 @@ export default function PacketTimeGraph({
         <CardTitle>Network Traffic</CardTitle>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col pb-3 pt-0">
-        <div className="flex min-h-0 flex-1 gap-6">
+        <div className="flex min-h-0 flex-1 gap-6 bg-background p-2 rounded">
           <div className="min-h-0 min-w-0 flex-1">
             <svg
               viewBox={`0 0 ${CHART_W} ${CHART_H}`}

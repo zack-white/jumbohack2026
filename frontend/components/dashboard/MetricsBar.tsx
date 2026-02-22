@@ -19,12 +19,12 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
   const hasData = metrics && (metrics.deviceCount > 0 || metrics.packetCount > 0);
 
   return (
-    <div className="w-72 flex flex-col gap-6">
+    <div className="w-72 flex flex-col gap-6 self-start">
       <Card className={cn(className)}>
         <CardContent>
           <div className="flex flex-col gap-2">
             <p>Active Connections</p>
-            <div>
+            <div className="flex h-16 flex-col items-start justify-center bg-background p-2 rounded">
               <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.connectionCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">connections</p>}
             </div>
@@ -35,7 +35,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
         <CardContent>
           <div className="flex flex-col gap-2">
             <p>Devices</p>
-            <div>
+            <div className="flex h-16 flex-col items-start justify-center bg-background p-2 rounded">
               <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.deviceCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">devices</p>}
             </div>
@@ -46,7 +46,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
         <CardContent>
           <div className="flex flex-col gap-2">
             <p>Packets Sent</p>
-            <div>
+            <div className="flex h-16 flex-col items-start justify-center bg-background p-2 rounded">
               <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.packetCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">packets</p>}
             </div>
