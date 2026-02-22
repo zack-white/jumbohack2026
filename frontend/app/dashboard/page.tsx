@@ -18,6 +18,7 @@ export default function DashboardPage() {
   }, [status]);
 
   const handleScanStateChange = useCallback((newStatus: string, startFn: () => void) => {
+    console.log('[HEADER] handleScanStateChange called with status:', newStatus, 'startFn:', startFn);
     setStatus(newStatus);
     startScanRef.current = startFn;
   }, []);
@@ -43,6 +44,20 @@ export default function DashboardPage() {
         }
         @keyframes l27 {
           100% {transform: rotate(1turn)}
+        }
+        .rescan-button {
+          background-color: black;
+          border: 1px solid #23ECFF;
+          color: #23ECFF;
+          transition: all 0.2s ease;
+        }
+        .rescan-button:hover:not(:disabled) {
+          background-color: rgba(35, 236, 255, 0.1);
+          box-shadow: 0 0 0 2px rgba(35, 236, 255, 0.2);
+        }
+        .rescan-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `}</style>
       <header className="flex shrink-0 items-center justify-between border-b px-6 py-4">
@@ -71,12 +86,16 @@ export default function DashboardPage() {
           
           <button
             type="button"
-            onClick={() => startScanRef.current && startScanRef.current()}
+            onClick={() => {
+              console.log('[HEADER] Re-scan button clicked, startScanRef.current:', startScanRef.current);
+              if (startScanRef.current) {
+                startScanRef.current();
+              }
+            }}
             disabled={status === "scanning"}
-            className="rounded-md px-4 py-2 text-sm font-medium bg-black border transition-colors disabled:opacity-50"
-            style={{ borderColor: "#23ECFF", color: "#23ECFF" }}
+            className="rescan-button rounded-md px-4 py-2 text-sm font-medium"
           >
-            {status === "scanning" ? "Scanning..." : "Re-scan"}
+            {status === "scanning" ? "Scanning..." : lastScanned === null ? "Scan" : "Re-scan"}
           </button>
         </div>
       </header>
