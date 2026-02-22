@@ -21,7 +21,7 @@ interface PacketTimeGraphProps {
 }
 
 const CHART_W = 900;
-const CHART_H = 300;
+const CHART_H = 200;
 const PAD = { top: 8, right: 16, bottom: 28, left: 48 };
 const INNER_W = CHART_W - PAD.left - PAD.right;
 const INNER_H = CHART_H - PAD.top - PAD.bottom;
