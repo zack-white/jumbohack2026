@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
 import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
-import DevicePanel, { type SelectedDevice } from "./DevicePanel";
+import { type SelectedDevice } from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
 import { generateLLMResponse } from "@/lib/generate-llm-response";
+import { Card, CardContent } from "../ui/card";
 
 const HEX_RADIUS = 140;
 const CENTER_X = 280;
@@ -217,14 +218,18 @@ export function PingPointDashboard() {
         <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           {/* <DevicePanel device={selectedDevice} onClose={() => setSelectedIp(null)} /> */}
           {(llmLoading || llmResponse) && (
-            <div className="flex flex-col gap-2 overflow-y-auto rounded-lg border border-border p-4">
-              <h3 className="text-sm font-semibold">Security Analysis</h3>
-              {llmLoading ? (
-                <p className="text-sm text-muted-foreground">Analyzing network traffic...</p>
-              ) : (
-                <p className="whitespace-pre-wrap text-sm">{llmResponse}</p>
-              )}
-            </div>
+            <Card> 
+              <CardContent>
+                <div className="flex flex-col gap-2 overflow-y-auto">
+                  <h3 className="text-sm font-semibold">Security Analysis</h3>
+                  {llmLoading ? (
+                    <p className="text-sm text-muted-foreground">Analyzing network traffic...</p>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm">{llmResponse}</p>
+                  )}
+                </div>
+              </CardContent> 
+            </Card>
           )}
         </aside>
       </div>

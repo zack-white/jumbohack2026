@@ -58,8 +58,8 @@ export default function PacketTimeGraph({
   if (!hasData) {
     return (
       <Card className={cn(className)}>
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-medium">Incoming Requests over Time</CardTitle>
+        <CardHeader>
+          <CardTitle>Network Traffic</CardTitle>
         </CardHeader>
         <CardContent className="flex h-16 items-center justify-center">
           <span className="text-muted-foreground text-sm">
@@ -114,8 +114,8 @@ export default function PacketTimeGraph({
 
   return (
     <Card className={cn(className)}>
-      <CardHeader className="pb-1 pt-3">
-        <CardTitle className="text-sm font-medium">Incoming Requests over Time</CardTitle>
+      <CardHeader>
+        <CardTitle>Network Traffic</CardTitle>
       </CardHeader>
       <CardContent className="pb-3 pt-0">
         <div className="flex gap-6">

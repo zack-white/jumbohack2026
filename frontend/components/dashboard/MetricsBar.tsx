@@ -25,7 +25,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
           <div className="flex flex-col gap-2">
             <p>Active Connections</p>
             <div>
-              <p className="text-2xl font-bold">{hasData ? metrics!.connectionCount.toLocaleString() : "—"}</p>
+              <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.connectionCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">connections</p>}
             </div>
           </div>
@@ -36,7 +36,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
           <div className="flex flex-col gap-2">
             <p>Devices</p>
             <div>
-              <p className="text-2xl font-bold">{hasData ? metrics!.deviceCount.toLocaleString() : "—"}</p>
+              <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.deviceCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">devices</p>}
             </div>
           </div>
@@ -47,7 +47,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
           <div className="flex flex-col gap-2">
             <p>Packets Sent</p>
             <div>
-              <p className="text-2xl font-bold">{hasData ? metrics!.packetCount.toLocaleString() : "—"}</p>
+              <p className={`text-2xl ${hasData && "font-bold"}`}>{hasData ? metrics!.packetCount.toLocaleString() : "—"}</p>
               {hasData && <p className="text-xs text-muted-foreground">packets</p>}
             </div>
           </div>
