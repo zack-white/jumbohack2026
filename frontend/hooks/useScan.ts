@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 
 export interface Packet {
     timestamp: number;
@@ -99,7 +100,16 @@ export function useScan() {
                 newIps.forEach(ip => scannedIpsRef.current.delete(ip));
                 
                 const errorText = await response.text();
-                console.error('[NMAP] HTTP Error:', response.status, errorText);
+                let detail = "";
+                try {
+                  const parsed = JSON.parse(errorText);
+                  detail = parsed.details ?? parsed.error ?? parsed.body?.detail ?? errorText;
+                } catch {
+                  detail = errorText || response.statusText;
+                }
+                toast.error("Nmap scan failed", {
+                  description: `HTTP ${response.status}: ${typeof detail === "string" ? detail.slice(0, 120) : String(detail).slice(0, 120)}`,
+                });
                 
                 // Try GET request as fallback to test if endpoint exists
                 const getResponse = await fetch('/api/pi/nmap');
@@ -110,19 +120,12 @@ export function useScan() {
                 }
             }
         } catch (error) {
-            // If there was a network error, remove the IPs from scanned set for retry
             const newIps = ips.filter(ip => !scannedIpsRef.current.has(ip));
             newIps.forEach(ip => scannedIpsRef.current.delete(ip));
-            
-            console.error('[NMAP] Network/Parse Error:', error);
-            
-            // Additional debugging: try to reach the endpoint via GET
-            try {
-                const testGet = await fetch('/api/pi/nmap');
-                console.log('[NMAP] GET test status:', testGet.status);
-            } catch (getError) {
-                console.error('[NMAP] GET test also failed:', getError);
-            }
+            const msg = error instanceof Error ? error.message : String(error);
+            toast.error("Nmap request failed", {
+                description: `Network or parse error: ${msg}`,
+            });
         }
     };
 
@@ -174,6 +177,9 @@ export function useScan() {
         es.onerror = () => {
             setStatus("error");
             es.close();
+            toast.error("Network scan failed", {
+              description: "The packet scan connection was lost. Check that the Pi is reachable and the scan endpoint is responding.",
+            });
         };
     };
 
@@ -197,12 +203,18 @@ export function useScan() {
             } else if (message.type === "error") {
                 setStatus("error");
                 nmapEs.close();
+                toast.error("Nmap stream error", {
+                    description: message.message || "Scan stream returned an error.",
+                });
             }
         };
 
         nmapEs.onerror = () => {
             setStatus("error");
             nmapEs.close();
+            toast.error("Nmap scan stream failed", {
+                description: "Connection to nmap stream lost. Check that the Pi backend is running.",
+            });
         };
     };
     

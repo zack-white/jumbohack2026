@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
@@ -213,7 +214,12 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
       setLLMResponse((prev) => prev + chunk);
     }, flatNmapResults)
       .then(() => console.log("[LLM] Claude stream finished"))
-      .catch((err) => console.error("[LLM] Claude request failed", err))
+      .catch((err) => {
+        console.error("[LLM] Claude request failed", err);
+        toast.error("Security analysis failed", {
+          description: err instanceof Error ? err.message : "Unable to generate AI analysis. Check your API key and connection.",
+        });
+      })
       .finally(() => setLlmLoading(false));
   }, [status, packets, devices, nmapScanResults]);
 
