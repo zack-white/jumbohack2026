@@ -9,6 +9,7 @@ import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
+import { generateLLMResponse } from "@/lib/generate-llm-response";
 
 const HEX_RADIUS = 140;
 const CENTER_X = 280;
@@ -63,6 +64,8 @@ export function PingPointDashboard() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
   const { packets, devices, status, start } = useScan();
+  const [llmResponse, setLLMResponse] = useState<string>("");
+  const [llmLoading, setLlmLoading] = useState(false);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
@@ -145,7 +148,10 @@ export function PingPointDashboard() {
 
   useEffect(() => {
     if (status === "done") {
-      generateLLMResponse(packets, devices);
+      setLlmLoading(true);
+      generateLLMResponse(packets, devices)
+        .then((res) => setLLMResponse(res))
+        .finally(() => setLlmLoading(false));
     }
   }, [status]);
 
@@ -178,9 +184,19 @@ export function PingPointDashboard() {
             summary={summary}
           />
         </div>
-        <aside className="flex min-h-0 flex-col overflow-hidden">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <MetricsBar metrics={metrics} />
           <DevicePanel />
+          {(llmLoading || llmResponse) && (
+            <div className="flex flex-col gap-2 overflow-y-auto rounded-lg border border-border p-4">
+              <h3 className="text-sm font-semibold">Security Analysis</h3>
+              {llmLoading ? (
+                <p className="text-sm text-muted-foreground">Analyzing network traffic...</p>
+              ) : (
+                <p className="whitespace-pre-wrap text-sm">{llmResponse}</p>
+              )}
+            </div>
+          )}
         </aside>
       </div>
     </div>
