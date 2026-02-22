@@ -143,6 +143,12 @@ export function PingPointDashboard() {
     });
   }, [packets, devices, ipToHostname]);
 
+  useEffect(() => {
+    if (status === "done") {
+      generateLLMResponse(packets, devices);
+    }
+  }, [status]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
       <div className="flex items-center gap-4">
