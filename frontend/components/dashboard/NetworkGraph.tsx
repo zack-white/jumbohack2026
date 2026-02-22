@@ -39,10 +39,22 @@ function LatticeBackground() {
 
     function resize() {
       if (!canvas) return;
+      const prevWidth = width;
+      const prevHeight = height;
       width = canvas.offsetWidth;
       height = canvas.offsetHeight;
       canvas.width = width;
       canvas.height = height;
+      // Proportionally rescale existing node positions so they spread across
+      // the new dimensions instead of piling up on the edge when the panel shrinks.
+      if (prevWidth > 0 && prevHeight > 0 && nodes.length > 0) {
+        const scaleX = width / prevWidth;
+        const scaleY = height / prevHeight;
+        for (const n of nodes) {
+          n.x = Math.min(n.x * scaleX, width);
+          n.y = Math.min(n.y * scaleY, height);
+        }
+      }
     }
 
     function init() {
@@ -177,7 +189,7 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       {isPi ? (
-        <RaspberryIcon className="h-8 w-8 text-pink-500" />
+        <RaspberryIcon className="h-8 w-8" />
       ) : (
         <Monitor className="h-8 w-8" />
       )}
