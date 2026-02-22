@@ -301,6 +301,7 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const [llmLoading, setLlmLoading] = useState(false);
   const llmTriggeredRef = useRef(false);
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
+  const [showFullPopup, setShowFullPopup] = useState(false);
   const [ipLLMResponse, setIPLLMResponse] = useState<string>("");
   const [ipLLMLoading, setIPLLMLoading] = useState(false);
   const ipToHostname = useAvahiHostnames(status === "scanning");
@@ -372,7 +373,17 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const handleNodeSelect = useCallback(
     (node: { data: { ip?: string } } | null) => {
       setSelectedIp(node?.data.ip ?? null);
+      setShowFullPopup(false); // Reset full popup state when selecting a new node
       console.log('[DASHBOARD] Node selected:', node?.data.ip);
+    },
+    []
+  );
+
+  const handleOpenFullPopup = useCallback(
+    (node: { data: { ip?: string } }) => {
+      setSelectedIp(node.data.ip ?? null);
+      setShowFullPopup(true);
+      console.log('[DASHBOARD] Opening full popup for:', node.data.ip);
     },
     []
   );
@@ -592,19 +603,23 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
               onNodesChange={onNodesChange as (changes: unknown[]) => void}
               onEdgesChange={onEdgesChange}
               onNodeSelect={handleNodeSelect}
+              onOpenFullPopup={handleOpenFullPopup}
               className="min-h-0 flex-1"
             />
             
-            {/* Device popup overlay */}
+            {/* Device popup overlay - only show when explicitly triggered */}
             <AnimatePresence>
-              {selectedIp && selectedDevice && (
+              {showFullPopup && selectedIp && selectedDevice && (
                 <DevicePopup 
                   selectedDevice={selectedDevice}
                   selectedNmapResults={selectedNmapResults}
                   status={status}
                   ipLLMResponse={ipLLMResponse}
                   ipLLMLoading={ipLLMLoading}
-                  onClose={() => setSelectedIp(null)}
+                  onClose={() => {
+                    setSelectedIp(null);
+                    setShowFullPopup(false);
+                  }}
                 />
               )}
             </AnimatePresence>

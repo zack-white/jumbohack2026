@@ -144,6 +144,7 @@ export interface NetworkGraphProps {
   onEdgesChange?: OnEdgesChange;
   onConnect?: OnConnect;
   onNodeSelect?: (node: Node<NetworkNodeData> | null) => void;
+  onOpenFullPopup?: (node: Node<NetworkNodeData>) => void;
   className?: string;
 }
 
@@ -213,9 +214,11 @@ export default function NetworkGraph({
   onEdgesChange,
   onConnect,
   onNodeSelect,
+  onOpenFullPopup,
   className,
 }: NetworkGraphProps) {
   const [selectedData, setSelectedData] = useState<NetworkNodeData | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node<NetworkNodeData> | null>(null);
 
   return (
     <div className={cn("relative h-full min-h-[400px] overflow-hidden rounded-lg border border-border bg-black", className)}>
@@ -232,10 +235,12 @@ export default function NetworkGraph({
         onNodeClick={(_, node) => {
           onNodeSelect?.(node);
           setSelectedData(node.data);
+          setSelectedNode(node);
         }}
         onPaneClick={() => {
           onNodeSelect?.(null);
           setSelectedData(null);
+          setSelectedNode(null);
         }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -280,6 +285,16 @@ export default function NetworkGraph({
               <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
             </div>
           </dl>
+          {onOpenFullPopup && selectedNode && (
+            <div className="px-3 pb-2.5">
+              <button
+                onClick={() => onOpenFullPopup(selectedNode)}
+                className="w-full pointer-events-auto text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors text-center py-1"
+              >
+                See more →
+              </button>
+            </div>
+          )}
           {(selectedData.risk === "slight" || selectedData.risk === "medium" || selectedData.risk === "high") && (
             <div className={cn(
               "mx-3 mb-3 rounded px-2 py-1.5 text-xs",
