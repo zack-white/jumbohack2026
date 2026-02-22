@@ -161,11 +161,12 @@ export function useScan() {
                 setStatus("done");
                 es.close();
                 
-                // Extract unique IPs from devices and start nmap scan
+                // Don't start the streaming nmap scan since we're using POST nmap-scan instead
+                console.log('[SCAN] Scan completed, skipping streaming nmap (using POST nmap-scan instead)');
+                
+                // Extract unique IPs from devices for potential future use
                 const ips = Object.keys(message.devices);
-                if (ips.length > 0) {
-                    startNmapScan(ips);
-                }
+                console.log('[SCAN] Final device IPs discovered:', ips);
             }
         };
 

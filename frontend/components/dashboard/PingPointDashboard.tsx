@@ -72,7 +72,7 @@ export function PingPointDashboard() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
-  const { packets, devices, status, nmapResults, start } = useScan();
+  const { packets, devices, status, nmapScanResults, start } = useScan();
   const [llmResponse, setLLMResponse] = useState<string>("");
   const [llmLoading, setLlmLoading] = useState(false);
   const llmTriggeredRef = useRef(false);
@@ -227,7 +227,7 @@ export function PingPointDashboard() {
       console.log("[LLM] Skipping (wrong status or already triggered)");
       return;
     }
-    console.log("[LLM] Triggering Claude request", { packets: packets.length, devices: Object.keys(devices).length, nmapResults: nmapResults.length });
+    console.log("[LLM] Triggering Claude request", { packets: packets.length, devices: Object.keys(devices).length, nmapScanResults: nmapScanResults.length });
     llmTriggeredRef.current = true;
     setLlmLoading(true);
     setLLMResponse("");
@@ -238,11 +238,11 @@ export function PingPointDashboard() {
         firstChunk = false;
       }
       setLLMResponse((prev) => prev + chunk);
-    }, nmapResults)
+    }, nmapScanResults)
       .then(() => console.log("[LLM] Claude stream finished"))
       .catch((err) => console.error("[LLM] Claude request failed", err))
       .finally(() => setLlmLoading(false));
-  }, [status, packets, devices, nmapResults]);
+  }, [status, packets, devices, nmapScanResults]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
@@ -276,6 +276,52 @@ export function PingPointDashboard() {
           />
         </div>
         <AnimatePresence>
+          {nmapScanResults.length > 0 && (
+            <motion.div
+              key="nmap-results"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-4"
+            >
+              <Card>
+                <CardContent className="py-4">
+                  <h3 className="text-sm font-semibold mb-3">Nmap Scan Results</h3>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {nmapScanResults.slice(-3).map((scanResult, index) => (
+                      <div key={index} className="text-xs p-3 bg-muted rounded">
+                        <div className="font-medium mb-2">{scanResult.message}</div>
+                        <div className="text-muted-foreground text-xs mb-2">
+                          {new Date(scanResult.timestamp).toLocaleTimeString()}
+                        </div>
+                        <div className="space-y-2">
+                          {scanResult.results.map((result, resultIndex) => (
+                            <div key={resultIndex} className="border-l-2 border-primary/20 pl-2">
+                              <div className="font-medium">{result.ip}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Return code: {result.returncode ?? "timeout"}
+                              </div>
+                              {result.stdout && (
+                                <div className="mt-1 text-xs bg-background p-2 rounded font-mono overflow-x-auto">
+                                  {result.stdout.slice(0, 200)}{result.stdout.length > 200 ? "..." : ""}
+                                </div>
+                              )}
+                              {result.stderr && (
+                                <div className="mt-1 text-xs text-destructive">
+                                  Error: {result.stderr.slice(0, 100)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
           {(llmLoading || llmResponse) && (
             <motion.aside
               key="ai-summary"
