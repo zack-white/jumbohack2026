@@ -94,7 +94,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           {/* Last scanned timestamp */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>⟳</span>
+            {/* <span>⟳</span> */}
             <span>Last update: {lastScanned ? `${Math.floor((new Date().getTime() - new Date(lastScanned).getTime()) / (1000 * 60))} minutes ago` : "never"}</span>
           </div>
           
