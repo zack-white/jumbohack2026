@@ -19,7 +19,7 @@ export default function MetricsBar({ className, metrics }: MetricsBarProps) {
   const hasData = metrics && (metrics.deviceCount > 0 || metrics.packetCount > 0);
 
   return (
-    <div className="w-72 flex flex-col gap-6 self-start">
+    <div className="w-50 flex flex-col gap-6 self-start">
       <Card className={cn(className)}>
         <CardContent>
           <div className="flex flex-col gap-2">
