@@ -3,6 +3,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PingPoint",
+  icons: {
+    icon: "/Logo.svg",
+  },
 };
 
 export default function RootLayout({
