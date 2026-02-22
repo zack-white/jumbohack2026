@@ -276,52 +276,6 @@ export function PingPointDashboard() {
           />
         </div>
         <AnimatePresence>
-          {nmapScanResults.length > 0 && (
-            <motion.div
-              key="nmap-results"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mb-4"
-            >
-              <Card>
-                <CardContent className="py-4">
-                  <h3 className="text-sm font-semibold mb-3">Nmap Scan Results</h3>
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {nmapScanResults.slice(-3).map((scanResult, index) => (
-                      <div key={index} className="text-xs p-3 bg-muted rounded">
-                        <div className="font-medium mb-2">{scanResult.message}</div>
-                        <div className="text-muted-foreground text-xs mb-2">
-                          {new Date(scanResult.timestamp).toLocaleTimeString()}
-                        </div>
-                        <div className="space-y-2">
-                          {scanResult.results.map((result, resultIndex) => (
-                            <div key={resultIndex} className="border-l-2 border-primary/20 pl-2">
-                              <div className="font-medium">{result.ip}</div>
-                              <div className="text-xs text-muted-foreground">
-                                Return code: {result.returncode ?? "timeout"}
-                              </div>
-                              {result.stdout && (
-                                <div className="mt-1 text-xs bg-background p-2 rounded font-mono overflow-x-auto">
-                                  {result.stdout.slice(0, 200)}{result.stdout.length > 200 ? "..." : ""}
-                                </div>
-                              )}
-                              {result.stderr && (
-                                <div className="mt-1 text-xs text-destructive">
-                                  Error: {result.stderr.slice(0, 100)}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
           {(llmLoading || llmResponse) && (
             <motion.aside
               key="ai-summary"
@@ -329,9 +283,9 @@ export function PingPointDashboard() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -400, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="flex shrink-0 basis-[380px] flex-col overflow-hidden"
+              className="flex shrink-0 basis-[380px] flex-col overflow-hidden gap-4"
             >
-              <Card className="flex h-full flex-col overflow-hidden">
+              <Card className="flex flex-col overflow-hidden">
                 <CardContent className="flex flex-1 flex-col gap-2 overflow-y-auto py-4">
                   <h3 className="text-sm font-semibold">Security Analysis</h3>
                   {llmLoading ? (
@@ -341,6 +295,44 @@ export function PingPointDashboard() {
                   )}
                 </CardContent>
               </Card>
+              
+              {nmapScanResults.length > 0 && (
+                <Card className="flex flex-col overflow-hidden">
+                  <CardContent className="py-4">
+                    <h3 className="text-sm font-semibold mb-3">Nmap Scan Results</h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {nmapScanResults.slice(-3).map((scanResult, index) => (
+                        <div key={index} className="text-xs p-3 bg-muted rounded">
+                          <div className="font-medium mb-2">{scanResult.message}</div>
+                          <div className="text-muted-foreground text-xs mb-2">
+                            {new Date(scanResult.timestamp).toLocaleTimeString()}
+                          </div>
+                          <div className="space-y-2">
+                            {scanResult.results.map((result, resultIndex) => (
+                              <div key={resultIndex} className="border-l-2 border-primary/20 pl-2">
+                                <div className="font-medium">{result.ip}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Return code: {result.returncode ?? "timeout"}
+                                </div>
+                                {result.stdout && (
+                                  <div className="mt-1 text-xs bg-background p-2 rounded font-mono overflow-x-auto">
+                                    {result.stdout.slice(0, 200)}{result.stdout.length > 200 ? "..." : ""}
+                                  </div>
+                                )}
+                                {result.stderr && (
+                                  <div className="mt-1 text-xs text-destructive">
+                                    Error: {result.stderr.slice(0, 100)}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </motion.aside>
           )}
         </AnimatePresence>
