@@ -4,7 +4,7 @@ import { getPiBaseUrl } from "@/lib/piBaseUrl";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 30_000;
 
 async function fetchPing(retry = false): Promise<Response> {
   const base = getPiBaseUrl();

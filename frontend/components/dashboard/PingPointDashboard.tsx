@@ -8,10 +8,17 @@ import DevicePanel from "./DevicePanel";
 import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
+import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
 
-const HEX_RADIUS = 100;
-const CENTER_X = 200;
-const CENTER_Y = 150;
+const HEX_RADIUS = 140;
+const CENTER_X = 280;
+const CENTER_Y = 200;
+const LABEL_MAX_LEN = 16;
+
+function truncateLabel(label: string): string {
+  if (label.length <= LABEL_MAX_LEN) return label;
+  return label.slice(0, LABEL_MAX_LEN - 2) + "…";
+}
 
 function hexWebPosition(index: number): { x: number; y: number } {
   if (index === 0) return { x: CENTER_X, y: CENTER_Y };
@@ -30,14 +37,21 @@ function hexWebPosition(index: number): { x: number; y: number } {
   };
 }
 
-function makeNode(ip: string, index: number): Node<NetworkNodeData> {
+function makeNode(
+  ip: string,
+  index: number,
+  ipToHostname: Map<string, string>
+): Node<NetworkNodeData> {
   const { x, y } = hexWebPosition(index);
+  const rawLabel = ipToHostname.get(ip) ?? ip;
+  const label = truncateLabel(rawLabel);
   return {
     id: ip,
     type: "device",
     position: { x, y },
     data: {
-      label: ip,
+      label,
+      labelFull: rawLabel,
       ip,
       risk: "none" as const,
     },
@@ -49,6 +63,7 @@ export function PingPointDashboard() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
   const { packets, devices, status, start } = useScan();
+  const ipToHostname = useAvahiHostnames(status === "scanning");
 
   const timeSeriesData = useMemo<TimeSeriesPoint[]>(() => {
     if (packets.length === 0) return [];
@@ -93,10 +108,16 @@ export function PingPointDashboard() {
       const nodes = deviceIps.map((ip, index) => {
         const existing = prevMap.get(ip);
         const { x, y } = hexWebPosition(index);
-        if (existing && existing.position.x === x && existing.position.y === y) {
+        const label = ipToHostname.get(ip) ?? ip;
+        if (
+          existing &&
+          existing.position.x === x &&
+          existing.position.y === y &&
+          existing.data.label === label
+        ) {
           return existing;
         }
-        return makeNode(ip, index);
+        return makeNode(ip, index, ipToHostname);
       });
       return nodes;
     });
@@ -120,7 +141,7 @@ export function PingPointDashboard() {
       connectionCount: connectionKeys.size,
       packetCount: packets.length,
     });
-  }, [packets, devices]);
+  }, [packets, devices, ipToHostname]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">

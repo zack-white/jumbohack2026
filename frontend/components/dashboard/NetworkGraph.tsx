@@ -23,6 +23,7 @@ export type RiskLevel = "none" | "slight" | "medium" | "high";
 
 export interface NetworkNodeData {
   label: string;
+  labelFull?: string;
   risk?: RiskLevel;
   ip?: string;
   [key: string]: unknown;
@@ -58,7 +59,12 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       <Monitor className="h-6 w-6" />
-      <span className="text-xs text-muted-foreground">{data.label}</span>
+      <span
+        className="text-xs text-muted-foreground truncate max-w-[120px]"
+        title={data.labelFull ?? data.label}
+      >
+        {data.label}
+      </span>
     </div>
   );
 }
