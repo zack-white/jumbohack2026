@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
@@ -11,7 +11,7 @@ import MetricsBar, { type PcapMetrics } from "./MetricsBar";
 import PacketTimeGraph, { type TimeSeriesPoint, type PcapSummary } from "./PacketTimeGraph";
 import { useScan } from "@/hooks/useScan";
 import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
-// import { generateLLMResponse } from "@/lib/generate-llm-response";
+import { generateLLMResponse } from "@/lib/generate-llm-response";
 import { Card, CardContent } from "../ui/card";
 
 const HEX_RADIUS = 220;
@@ -278,6 +278,7 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
   const { packets, devices, status, nmapScanResults, start } = useScan();
   const [llmResponse, setLLMResponse] = useState<string>("");
   const [llmLoading, setLlmLoading] = useState(false);
+  const llmTriggeredRef = useRef(false);
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
@@ -449,26 +450,25 @@ export function PingPointDashboard({ onScanStateChange }: PingPointDashboardProp
     });
   }, [packets, devices, ipToHostname]);
 
-  // LLM call commented out to avoid API quota usage
-  // useEffect(() => {
-  //   const shouldTrigger = status === "done" || status === "nmap-scanning" || status === "complete";
-  //   if (!shouldTrigger || llmTriggeredRef.current) return;
-  //   llmTriggeredRef.current = true;
-  //   setLlmLoading(true);
-  //   setLLMResponse("");
-  //   let firstChunk = true;
-  //   const flatNmapResults = nmapScanResults.flatMap((r) => r.results);
-  //   generateLLMResponse(packets, devices, (chunk) => {
-  //     if (firstChunk) { setLlmLoading(false); firstChunk = false; }
-  //     setLLMResponse((prev) => prev + chunk);
-  //   }, flatNmapResults)
-  //     .catch((err) => {
-  //       toast.error("Security analysis failed", {
-  //         description: err instanceof Error ? err.message : "Unable to generate AI analysis.",
-  //       });
-  //     })
-  //     .finally(() => setLlmLoading(false));
-  // }, [status, packets, devices, nmapScanResults]);
+  useEffect(() => {
+    const shouldTrigger = status === "done" || status === "nmap-scanning" || status === "complete";
+    if (!shouldTrigger || llmTriggeredRef.current) return;
+    llmTriggeredRef.current = true;
+    setLlmLoading(true);
+    setLLMResponse("");
+    let firstChunk = true;
+    const flatNmapResults = nmapScanResults.flatMap((r) => r.results);
+    generateLLMResponse(packets, devices, (chunk) => {
+      if (firstChunk) { setLlmLoading(false); firstChunk = false; }
+      setLLMResponse((prev) => prev + chunk);
+    }, flatNmapResults)
+      .catch((err) => {
+        toast.error("Security analysis failed", {
+          description: err instanceof Error ? err.message : "Unable to generate AI analysis.",
+        });
+      })
+      .finally(() => setLlmLoading(false));
+  }, [status, packets, devices, nmapScanResults]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
