@@ -1,4 +1,4 @@
-import { type Packet, type Device } from "@/hooks/useScan";
+import { type Packet, type Device, type NmapResult } from "@/hooks/useScan";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
@@ -6,7 +6,11 @@ const client = new Anthropic({
     dangerouslyAllowBrowser: true,
 });
 
-function buildPrompt(packets: Packet[], devices: Record<string, Device>): string {
+function buildPrompt(
+  packets: Packet[],
+  devices: Record<string, Device>,
+  nmapResults?: NmapResult[]
+): string {
     const deviceLines = Object.entries(devices).map(([ip, d]) =>
         `  - ${ip} | MAC: ${d.mac} | Vendor: ${d.vendor} | Hostname: ${d.hostname ?? "unknown"}`
     ).join("\n");
@@ -44,6 +48,9 @@ ${deviceLines || "  None identified"}
 
 PACKET LOG (${packets.length} total):
 ${packetLines || "  No packets captured"}
+${nmapResults && nmapResults.length > 0 ? `
+NMAP PORT SCAN RESULTS (${nmapResults.length} hosts):
+${nmapResults.map((r) => `  ${r.ip}: returncode=${r.returncode} | open ports/services in stdout below\n    stdout: ${(r.stdout || "").slice(0, 800)}${(r.stdout?.length ?? 0) > 800 ? "..." : ""}`).join("\n")}` : ""}
 
 ---
 
@@ -55,9 +62,12 @@ Do not use markdown formatting. No headers, no bold, no asterisks, no hyphens as
 export async function generateLLMResponse(
     packets: Packet[],
     devices: Record<string, Device>,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    nmapResults?: NmapResult[]
 ): Promise<void> {
-    const prompt = buildPrompt(packets, devices);
+    console.log("[LLM] generateLLMResponse called", { packets: packets.length, devices: Object.keys(devices).length, nmapResults: nmapResults?.length ?? 0 });
+    const prompt = buildPrompt(packets, devices, nmapResults);
+    console.log("[LLM] Prompt built, sending to Claude...");
 
     const stream = await client.messages.create({
         model: "claude-haiku-4-5",
@@ -66,9 +76,13 @@ export async function generateLLMResponse(
         stream: true,
     });
 
+    let chunkCount = 0;
     for await (const event of stream) {
         if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            chunkCount++;
+            if (chunkCount === 1) console.log("[LLM] First chunk received");
             onChunk(event.delta.text);
         }
     }
+    console.log("[LLM] Stream complete", { totalChunks: chunkCount });
 }

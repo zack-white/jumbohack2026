@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   ReactFlow,
   Controls,
-  MiniMap,
   Handle,
   Position,
   type Node,
@@ -149,16 +148,16 @@ function DeviceNode({ data, selected }: { data: NetworkNodeData; selected?: bool
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-1 rounded-lg border-2 bg-card p-2 transition-all",
+        "flex min-w-[180px] flex-col items-center gap-2 rounded-lg border-2 bg-card px-4 py-3 transition-all",
         riskColors[risk],
         selected && "ring-2 ring-blue-400 ring-offset-2 ring-offset-background"
       )}
     >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
-      <Monitor className="h-6 w-6" />
+      <Monitor className="h-8 w-8" />
       <span
-        className="max-w-[120px] truncate text-xs text-muted-foreground"
+        className="max-w-[200px] truncate text-sm text-muted-foreground"
         title={data.labelFull ?? data.label}
       >
         {data.label}
@@ -179,8 +178,6 @@ export default function NetworkGraph({
   onNodeSelect,
   className,
 }: NetworkGraphProps) {
-  const [selectedData, setSelectedData] = useState<NetworkNodeData | null>(null);
-
   return (
     <div className={cn("relative h-full min-h-[400px] overflow-hidden rounded-lg border border-border bg-black", className)}>
       <LatticeBackground />
@@ -193,14 +190,8 @@ export default function NetworkGraph({
         nodesDraggable
         nodesConnectable={false}
         onConnect={onConnect}
-        onNodeClick={(_, node) => {
-          onNodeSelect?.(node);
-          setSelectedData(node.data);
-        }}
-        onPaneClick={() => {
-          onNodeSelect?.(null);
-          setSelectedData(null);
-        }}
+        onNodeClick={(_, node) => onNodeSelect?.(node)}
+        onPaneClick={() => onNodeSelect?.(null)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
@@ -208,55 +199,8 @@ export default function NetworkGraph({
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "animatedBeam", style: { stroke: "#94a3b8" } }}
       >
-        <Controls className="!bg-card !border-border" />
-        <MiniMap
-          nodeColor={(n) => {
-            const risk = (n.data as NetworkNodeData).risk ?? "none";
-            if (risk === "high") return "rgb(239 68 68)";
-            if (risk === "medium") return "rgb(249 115 22)";
-            if (risk === "slight") return "rgb(251 191 36)";
-            return "rgb(96 165 250)";
-          }}
-          maskColor="rgba(0,0,0,0.4)"
-          className="!bg-card !border-border"
-        />
+        <Controls className="!bg-card !border-border" showFitView={false} />
       </ReactFlow>
-
-      {selectedData && (
-        <div className="pointer-events-none absolute right-3 top-3 z-10 w-56 rounded-lg border border-border bg-card shadow-xl">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <Monitor className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span
-              className="truncate text-sm font-semibold"
-              title={String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
-            >
-              {String(selectedData.hostname ?? selectedData.ip ?? "Unknown")}
-            </span>
-          </div>
-          <dl className="space-y-1.5 px-3 py-2.5 text-xs">
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">IP</dt>
-              <dd className="font-mono">{selectedData.ip}</dd>
-            </div>
-            {selectedData.mac && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">MAC</dt>
-                <dd className="font-mono">{String(selectedData.mac)}</dd>
-              </div>
-            )}
-            {selectedData.vendor && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Vendor</dt>
-                <dd className="text-right">{String(selectedData.vendor)}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Packets</dt>
-              <dd>{Number(selectedData.packetCount ?? 0).toLocaleString()}</dd>
-            </div>
-          </dl>
-        </div>
-      )}
     </div>
   );
 }

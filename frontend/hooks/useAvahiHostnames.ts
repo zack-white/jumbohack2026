@@ -13,13 +13,17 @@ function fetchHostnames(): Promise<Map<string, string>> {
     cache: "no-store",
     signal: controller.signal,
   })
-    .then((res) => res.json())
-    .then((data: { type?: string; devices?: { ip: string; hostname: string }[] }) => {
+    .then((res) => {
       clearTimeout(id);
-      if (data?.type === "avahi_ip_hostnames" && Array.isArray(data.devices)) {
+      if (!res.ok) return new Map<string, string>();
+      return res.json();
+    })
+    .then((data: unknown) => {
+      const d = data as { type?: string; devices?: { ip: string; hostname: string }[] };
+      if (d?.type === "avahi_ip_hostnames" && Array.isArray(d.devices)) {
         const map = new Map<string, string>();
-        for (const d of data.devices) {
-          if (d?.ip && d?.hostname) map.set(d.ip, d.hostname);
+        for (const item of d.devices) {
+          if (item?.ip && item?.hostname) map.set(item.ip, item.hostname);
         }
         return map;
       }

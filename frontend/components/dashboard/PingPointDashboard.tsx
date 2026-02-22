@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { Node, Edge } from "@xyflow/react";
 import NetworkGraph, { type NetworkNodeData } from "./NetworkGraph";
@@ -12,10 +13,10 @@ import { useAvahiHostnames } from "@/hooks/useAvahiHostnames";
 import { generateLLMResponse } from "@/lib/generate-llm-response";
 import { Card, CardContent } from "../ui/card";
 
-const HEX_RADIUS = 140;
-const CENTER_X = 280;
-const CENTER_Y = 200;
-const LABEL_MAX_LEN = 16;
+const HEX_RADIUS = 220;
+const CENTER_X = 520;
+const CENTER_Y = 320;
+const LABEL_MAX_LEN = 24;
 
 function truncateLabel(label: string): string {
   if (label.length <= LABEL_MAX_LEN) return label;
@@ -71,9 +72,10 @@ export function PingPointDashboard() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NetworkNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [metrics, setMetrics] = useState<PcapMetrics | null>(null);
-  const { packets, devices, status, start } = useScan();
+  const { packets, devices, status, nmapResults, start } = useScan();
   const [llmResponse, setLLMResponse] = useState<string>("");
   const [llmLoading, setLlmLoading] = useState(false);
+  const llmTriggeredRef = useRef(false);
   const [selectedIp, setSelectedIp] = useState<string | null>(null);
   const ipToHostname = useAvahiHostnames(status === "scanning");
 
@@ -183,21 +185,40 @@ export function PingPointDashboard() {
     });
   }, [packets, devices, ipToHostname]);
 
+  // Reset LLM trigger when starting a new scan
   useEffect(() => {
-    if (status === "done") {
-      // LLM call commented out to avoid API quota usage
-      setLlmLoading(true);
-      setLLMResponse("");
-      let firstChunk = true;
-      generateLLMResponse(packets, devices, (chunk) => {
-        if (firstChunk) {
-          setLlmLoading(false);
-          firstChunk = false;
-        }
-        setLLMResponse((prev) => prev + chunk);
-      }).finally(() => setLlmLoading(false));
+    if (status === "idle" || status === "scanning") {
+      llmTriggeredRef.current = false;
+      if (status === "scanning") console.log("[LLM] Reset trigger for new scan");
     }
   }, [status]);
+
+  // Trigger LLM when scan completes. Status goes "done" -> "nmap-scanning" in same batch
+  // when there are devices, so we rarely see "done". Trigger on "nmap-scanning" (packet scan
+  // done, nmap starting), "complete" (includes nmap), or "done" (0 devices).
+  useEffect(() => {
+    console.log("[LLM] Effect run", { status, llmTriggered: llmTriggeredRef.current, deviceCount: Object.keys(devices).length, packetCount: packets.length });
+    const shouldTrigger = status === "done" || status === "nmap-scanning" || status === "complete";
+    if (!shouldTrigger || llmTriggeredRef.current) {
+      console.log("[LLM] Skipping (wrong status or already triggered)");
+      return;
+    }
+    console.log("[LLM] Triggering Claude request", { packets: packets.length, devices: Object.keys(devices).length, nmapResults: nmapResults.length });
+    llmTriggeredRef.current = true;
+    setLlmLoading(true);
+    setLLMResponse("");
+    let firstChunk = true;
+    generateLLMResponse(packets, devices, (chunk) => {
+      if (firstChunk) {
+        setLlmLoading(false);
+        firstChunk = false;
+      }
+      setLLMResponse((prev) => prev + chunk);
+    }, nmapResults)
+      .then(() => console.log("[LLM] Claude stream finished"))
+      .catch((err) => console.error("[LLM] Claude request failed", err))
+      .finally(() => setLlmLoading(false));
+  }, [status, packets, devices, nmapResults]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
@@ -213,8 +234,8 @@ export function PingPointDashboard() {
         <span className="text-sm text-muted-foreground">Status: {status}</span>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_420px]">
-        <div className="flex min-h-0 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 overflow-hidden gap-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
           <NetworkGraph
             nodes={nodes}
             edges={edges}
@@ -230,23 +251,29 @@ export function PingPointDashboard() {
             summary={summary}
           />
         </div>
-        <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
-          {/* <DevicePanel device={selectedDevice} onClose={() => setSelectedIp(null)} /> */}
+        <AnimatePresence>
           {(llmLoading || llmResponse) && (
-            <Card> 
-              <CardContent>
-                <div className="flex flex-col gap-2 overflow-y-auto">
+            <motion.aside
+              key="ai-summary"
+              initial={{ x: -400, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -400, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="flex shrink-0 basis-[380px] flex-col overflow-hidden"
+            >
+              <Card className="flex h-full flex-col overflow-hidden">
+                <CardContent className="flex flex-1 flex-col gap-2 overflow-y-auto py-4">
                   <h3 className="text-sm font-semibold">Security Analysis</h3>
                   {llmLoading ? (
                     <p className="text-sm text-muted-foreground">Analyzing network traffic...</p>
                   ) : (
                     <p className="whitespace-pre-wrap text-sm">{llmResponse}</p>
                   )}
-                </div>
-              </CardContent> 
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.aside>
           )}
-        </aside>
+        </AnimatePresence>
       </div>
     </div>
   );
