@@ -81,7 +81,7 @@ export default function PacketTimeGraph({
 
   const stats: { label: string; value: string }[] = [
     { label: "Total Requests", value: fmtCount(totalRequests) },
-    { label: "Duration", value: fmtTime(duration) },
+    { label: "Duration", value: `${fmtTime(duration)} / 60s` },
     { label: "Peak", value: `${fmtCount(peakCount)} req / 5s @ ${fmtTime(peakAt)}` },
     { label: "Avg", value: `${avgPerBucket.toFixed(1)} req / 5s` },
   ];
