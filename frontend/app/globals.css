@@ -123,9 +123,13 @@
     }
 }
 
-/* React Flow graph pane - force black background */
+/* React Flow graph pane - transparent so the lattice canvas behind it shows through */
 .react-flow__pane {
-  background-color: #000 !important;
+  background-color: transparent !important;
+}
+
+.react-flow {
+  background-color: transparent !important;
 }
 
 /* Make edges visible on black background (default dark stroke is #3e3e3e, invisible) */
