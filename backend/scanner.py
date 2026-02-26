@@ -5,64 +5,91 @@ import asyncio
 import queue
 import socket
 import time
+import subprocess
+import re
 
 
 class DeviceTracker:
     """
     Maintains a live map of every device seen on the network.
-    Populated by ARP packets: each one tells us a MAC <-> IP pairing.
+    ARP gives us IP <-> MAC. mDNS/Avahi can give us human-readable names.
     """
 
     def __init__(self):
-        # Keys are IP addresses, values are dicts with mac/vendor/hostname
+        # Keys are IP addresses, values are dicts with mac/vendor/hostname/mdns_names
         self._devices = {}
 
-    def update(self, ip: str, mac: str):
-        # Only store the first time we see a device — avoids duplicate lookups
+    def ensure(self, ip: str):
         if ip not in self._devices:
             self._devices[ip] = {
-                "mac": mac,
-                "vendor": self._get_vendor(mac),
-                "hostname": self._get_hostname(ip),
+                "mac": None,
+                "vendor": "Unknown",
+                "hostname": None,      # reverse DNS if available
+                "mdns_names": [],      # names discovered via Avahi/mDNS
+                "last_seen": datetime.now().isoformat(),
             }
+        else:
+            self._devices[ip]["last_seen"] = datetime.now().isoformat()
+
+    def update_arp(self, ip: str, mac: str):
+        self.ensure(ip)
+        # Prefer real ARP data when we have it
+        if mac and not self._devices[ip].get("mac"):
+            self._devices[ip]["mac"] = mac
+            self._devices[ip]["vendor"] = self._get_vendor(mac)
+
+        # Fill hostname if we don’t have one yet
+        if self._devices[ip].get("hostname") is None:
+            self._devices[ip]["hostname"] = self._get_hostname(ip)
+
+    def add_mdns_name(self, ip: str, name: str):
+        if not ip or not name:
+            return
+        self.ensure(ip)
+
+        # Normalize to something readable
+        name = name.strip()
+        if not name:
+            return
+
+        # Avoid duplicates
+        names = self._devices[ip].setdefault("mdns_names", [])
+        if name not in names:
+            names.append(name)
+
+        # If hostname isn't set, mdns is often the best "name"
+        if not self._devices[ip].get("hostname"):
+            self._devices[ip]["hostname"] = name
 
     def _get_vendor(self, mac: str) -> str:
-        # Scapy ships with an offline MAC-to-manufacturer database
-        # e.g. "b8:27:eb:..." → "Raspberry Pi Foundation"
         try:
             return conf.manufdb._get_manuf(mac) or "Unknown"
         except Exception:
             return "Unknown"
 
     def _get_hostname(self, ip: str) -> str:
-        # Reverse DNS: turns "192.168.1.5" into "my-macbook.local" if possible
         try:
             return socket.gethostbyaddr(ip)[0]
         except Exception:
             return None
 
     def get_devices(self) -> dict:
-        # Returns a copy so callers can't accidentally mutate internal state
         return dict(self._devices)
 
 
 def parse_packet(packet) -> dict:
-    """
-    Converts a raw Scapy packet into a clean dict the frontend can render.
-    """
     data = {
         "timestamp": datetime.now().isoformat(),
-        "protocol": None,   # TCP / UDP / ICMP / ARP
-        "src_ip": None,     # who sent it
-        "dst_ip": None,     # who it's going to
-        "src_port": None,   # which app sent it (e.g. port 52341)
-        "dst_port": None,   # which service it's hitting (e.g. 443 = HTTPS)
-        "size": len(packet),# bytes — useful for bandwidth visualization
-        "dns_query": None,  # domain being looked up, if this is a DNS packet
-        "flags": None,      # TCP only: SYN, ACK, FIN, etc.
+        "protocol": None,
+        "src_ip": None,
+        "dst_ip": None,
+        "src_port": None,
+        "dst_port": None,
+        "size": len(packet),
+        "dns_query": None,
+        "flags": None,
     }
 
-    # All TCP/UDP packets have an IP layer with source/destination addresses
     if packet.haslayer(IP):
         data["src_ip"] = packet[IP].src
         data["dst_ip"] = packet[IP].dst
@@ -71,8 +98,6 @@ def parse_packet(packet) -> dict:
         data["protocol"] = "TCP"
         data["src_port"] = packet[TCP].sport
         data["dst_port"] = packet[TCP].dport
-        # Flags tell us what kind of TCP event this is:
-        # "S" = new connection attempt, "F" = connection closing, etc.
         data["flags"] = str(packet[TCP].flags)
 
     elif packet.haslayer(UDP):
@@ -81,15 +106,14 @@ def parse_packet(packet) -> dict:
         data["dst_port"] = packet[UDP].dport
 
     elif packet.haslayer(ICMP):
-        # ICMP = ping traffic, no ports
         data["protocol"] = "ICMP"
 
-    # DNS runs over UDP — qr==0 means this is a query (not a response)
     if packet.haslayer(DNS) and packet[DNS].qr == 0:
-        data["dns_query"] = packet[DNS].qd.qname.decode()
+        try:
+            data["dns_query"] = packet[DNS].qd.qname.decode(errors="ignore")
+        except Exception:
+            pass
 
-    # ARP is how devices announce themselves on the local network
-    # It doesn't use IP layer fields, so we overwrite src/dst here
     if packet.haslayer(ARP):
         data["protocol"] = "ARP"
         data["src_ip"] = packet[ARP].psrc
@@ -98,53 +122,116 @@ def parse_packet(packet) -> dict:
     return data
 
 
-async def run_scan(duration: int = 60, batch_interval: float = 2.0):
-    """
-    Async generator that sniffs packets for "duration" seconds, yielding
-    micro-batches every "batch_interval" seconds.
+# --- NEW: Avahi/mDNS helpers ---
 
-    Yields dicts with type "batch" during the scan and "done" at the end.
-    The WebSocket handler in main.py iterates over this generator.
+_AVAHI_ADDR_RE = re.compile(r"address\s*=\s*\[(?P<ip>[0-9a-fA-F\.\:]+)\]")
+_AVAHI_HOST_RE = re.compile(r"hostname\s*=\s*\[(?P<name>.+?)\]")
+_AVAHI_NAME_RE = re.compile(r"name\s*=\s*\[(?P<name>.+?)\]")
+
+def avahi_browse_resolved(timeout_sec: float = 2.0) -> list[dict]:
     """
+    Runs `avahi-browse -a -r -t` and returns a list of resolved records.
+    Each record may include:
+      - name (service/device label)
+      - hostname (often *.local)
+      - address (ip)
+    """
+    try:
+        proc = subprocess.run(
+            ["avahi-browse", "-a", "-r", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec,
+            check=False,
+        )
+    except FileNotFoundError:
+        # avahi-browse not installed
+        return []
+    except subprocess.TimeoutExpired:
+        return []
+
+    out = proc.stdout.splitlines()
+    records = []
+    current = {}
+
+    # The output is blocky; we collect key=value lines until a blank line
+    for line in out:
+        line = line.strip()
+        if not line:
+            if current:
+                records.append(current)
+                current = {}
+            continue
+
+        m = _AVAHI_NAME_RE.search(line)
+        if m:
+            current.setdefault("name", m.group("name"))
+
+        m = _AVAHI_HOST_RE.search(line)
+        if m:
+            current.setdefault("hostname", m.group("name"))
+
+        m = _AVAHI_ADDR_RE.search(line)
+        if m:
+            current.setdefault("address", m.group("ip"))
+
+    if current:
+        records.append(current)
+
+    return records
+
+
+async def run_scan(duration: int = 60, batch_interval: float = 2.0):
     tracker = DeviceTracker()
     iface = get_interface()
-
-    # Sniffer thread puts packets in queue, we read them out
     packet_queue = queue.Queue()
 
     def handle_packet(pkt):
-        # Called by the sniffer thread for every packet captured
         if pkt.haslayer(ARP):
-            # Learn this device: MAC hwsrc owns IP psrc
-            tracker.update(pkt[ARP].psrc, pkt[ARP].hwsrc)
-        # Parse and drop into queue, main loop will pick it up
+            tracker.update_arp(pkt[ARP].psrc, pkt[ARP].hwsrc)
+
+        # If it’s an IP packet, keep "last_seen" warm even if we never saw ARP
+        if pkt.haslayer(IP):
+            tracker.ensure(pkt[IP].src)
+            tracker.ensure(pkt[IP].dst)
+
         packet_queue.put(parse_packet(pkt))
 
-    # AsyncSniffer runs in a background thread so it doesn't block FastAPI
     sniffer = AsyncSniffer(iface=iface, prn=handle_packet, store=False)
     sniffer.start()
 
     start = time.time()
     while time.time() - start < duration:
-        # Yield control back to FastAPI for batch_interval seconds
         await asyncio.sleep(batch_interval)
 
-        # Drain everything that accumulated in the queue since last batch
+        # NEW: run avahi periodically and merge results
+        for rec in avahi_browse_resolved(timeout_sec=2.0):
+            ip = rec.get("address")
+            name = rec.get("hostname") or rec.get("name")
+            # Only attach if it resolved to an address
+            if ip and name:
+                tracker.add_mdns_name(ip, name)
+
         batch = []
         while not packet_queue.empty():
             batch.append(packet_queue.get_nowait())
 
-        # Only send if we actually captured something
         if batch:
             yield {
                 "type": "batch",
                 "packets": batch,
-                "devices": tracker.get_devices(),  # current snapshot of all known devices
+                "devices": tracker.get_devices(),
             }
 
     sniffer.stop()
 
-    # Signals main.py to trigger LLM analysis
+    # One last Avahi pass before finishing
+    for rec in avahi_browse_resolved(timeout_sec=2.0):
+        ip = rec.get("address")
+        name = rec.get("hostname") or rec.get("name")
+        if ip and name:
+            tracker.add_mdns_name(ip, name)
+
     yield {
         "type": "done",
         "devices": tracker.get_devices(),
@@ -154,14 +241,10 @@ async def run_scan(duration: int = 60, batch_interval: float = 2.0):
 INTERFACE_PRIORITY = ["eth0", "eth1", "wlan0", "wlan1"]
 
 def get_interface():
-    """
-    Determines how Pi is connected to the Internet to know how to listen.
-    """
     available = get_if_list()
     for iface in INTERFACE_PRIORITY:
         if iface in available and get_if_addr(iface) != "0.0.0.0":
             return iface
-    # fallback: first non-loopback interface with an IP
     for iface in available:
         if iface == "lo":
             continue
