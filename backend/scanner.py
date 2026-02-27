@@ -77,47 +77,62 @@ class DeviceTracker:
         return dict(self._devices)
 
 
-def parse_packet(packet) -> dict:
+def parse_packet(packet):
+    # Only emit packets that have something actionable (IP or ARP)
+    has_ip = packet.haslayer(IP)
+    has_arp = packet.haslayer(ARP)
+    if not has_ip and not has_arp:
+        return None
+
     data = {
-        "timestamp": datetime.now().isoformat(),
-        "protocol": None,
-        "src_ip": None,
-        "dst_ip": None,
-        "src_port": None,
-        "dst_port": None,
-        "size": len(packet),
-        "dns_query": None,
-        "flags": None,
+        "t": time.time(),   # unix seconds; frontend can format
+        "p": None,          # protocol
+        "src": None,
+        "dst": None,
+        "sport": None,
+        "dport": None,
+        "len": len(packet),
+        "dns": None,
+        "f": None,          # tcp flags
     }
 
-    if packet.haslayer(IP):
-        data["src_ip"] = packet[IP].src
-        data["dst_ip"] = packet[IP].dst
+    if has_ip:
+        data["src"] = packet[IP].src
+        data["dst"] = packet[IP].dst
 
     if packet.haslayer(TCP):
-        data["protocol"] = "TCP"
-        data["src_port"] = packet[TCP].sport
-        data["dst_port"] = packet[TCP].dport
-        data["flags"] = str(packet[TCP].flags)
+        data["p"] = "TCP"
+        data["sport"] = int(packet[TCP].sport)
+        data["dport"] = int(packet[TCP].dport)
+        data["f"] = str(packet[TCP].flags)
 
     elif packet.haslayer(UDP):
-        data["protocol"] = "UDP"
-        data["src_port"] = packet[UDP].sport
-        data["dst_port"] = packet[UDP].dport
+        data["p"] = "UDP"
+        data["sport"] = int(packet[UDP].sport)
+        data["dport"] = int(packet[UDP].dport)
+
+        # DNS query (high signal)
+        if packet.haslayer(DNS) and packet[DNS].qr == 0 and packet[DNS].qd:
+            try:
+                data["dns"] = packet[DNS].qd.qname.decode(errors="ignore").rstrip(".")
+            except Exception:
+                pass
 
     elif packet.haslayer(ICMP):
-        data["protocol"] = "ICMP"
+        data["p"] = "ICMP"
 
-    if packet.haslayer(DNS) and packet[DNS].qr == 0:
-        try:
-            data["dns_query"] = packet[DNS].qd.qname.decode(errors="ignore")
-        except Exception:
-            pass
+    if has_arp:
+        data["p"] = "ARP"
+        data["src"] = packet[ARP].psrc
+        data["dst"] = packet[ARP].pdst
+        data["sport"] = None
+        data["dport"] = None
+        data["dns"] = None
+        data["f"] = None
 
-    if packet.haslayer(ARP):
-        data["protocol"] = "ARP"
-        data["src_ip"] = packet[ARP].psrc
-        data["dst_ip"] = packet[ARP].pdst
+    # If still no src/dst, drop it
+    if not data["src"] and not data["dst"]:
+        return None
 
     return data
 
